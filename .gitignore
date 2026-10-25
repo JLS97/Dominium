@@ -19,5 +19,6 @@ Thumbs.db
 /.vscode/
 /.idea/
 
-# Ajustes locales de agentes
+# Ajustes locales de agentes y worktrees de tareas (.worktrees/)
 /.claude/settings.local.json
+/.worktrees/
