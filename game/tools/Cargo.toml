@@ -1,0 +1,11 @@
+[package]
+name = "game_tools"
+version.workspace = true
+edition.workspace = true
+publish.workspace = true
+description = "Herramientas con conocimiento del juego: editor de mapas, visor de partidas IA contra IA"
+
+[lints]
+workspace = true
+
+[dependencies]

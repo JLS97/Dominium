@@ -1,0 +1,11 @@
+[package]
+name = "engine_tools"
+version.workspace = true
+edition.workspace = true
+publish.workspace = true
+description = "Herramientas del motor sin conceptos de juego: inspector de assets, horneado de impostores"
+
+[lints]
+workspace = true
+
+[dependencies]

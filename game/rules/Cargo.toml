@@ -1,0 +1,11 @@
+[package]
+name = "game_rules"
+version.workspace = true
+edition.workspace = true
+publish.workspace = true
+description = "Reglas del juego: unidades, facciones, economía, habilidades e IA; sin gráficos"
+
+[lints]
+workspace = true
+
+[dependencies]

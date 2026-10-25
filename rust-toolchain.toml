@@ -1,0 +1,6 @@
+# Versión fijada para que todos los agentes compilen con el mismo compilador
+# y los mismos lints. Se sube de forma deliberada, una vez por hito, con su
+# propio commit. rustup la instala sola la primera vez que se usa.
+[toolchain]
+channel = "1.99.1"
+components = ["rustfmt", "clippy"]

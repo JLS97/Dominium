@@ -1,0 +1,11 @@
+[package]
+name = "engine_sim"
+version.workspace = true
+edition.workspace = true
+publish.workspace = true
+description = "Simulación determinista: tablas SoA, grid espacial, navegación, scheduler y eventos"
+
+[lints]
+workspace = true
+
+[dependencies]

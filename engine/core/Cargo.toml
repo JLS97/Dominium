@@ -1,0 +1,11 @@
+[package]
+name = "engine_core"
+version.workspace = true
+edition.workspace = true
+publish.workspace = true
+description = "Base del motor: matemáticas, tiempo en ticks, handles, serialización y perfilado"
+
+[lints]
+workspace = true
+
+[dependencies]

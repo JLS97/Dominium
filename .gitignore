@@ -1,0 +1,23 @@
+# Rust
+/target/
+**/*.rs.bk
+*.pdb
+
+# Capturas de perfilado y volcados
+*.tracy
+*.heaptrack
+/perf/
+
+# Guardados y replays locales de pruebas
+/saves/
+/replays/
+
+# Sistema operativo y editores
+.DS_Store
+Thumbs.db
+*.swp
+/.vscode/
+/.idea/
+
+# Ajustes locales de agentes
+/.claude/settings.local.json
