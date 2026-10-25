@@ -6,7 +6,7 @@
 
 Este documento recoge todo lo decidido hasta ahora sobre el proyecto, para que cualquier agente de IA (o yo mismo) pueda continuar sin perder contexto. Es la fuente de verdad provisional hasta que existan la constitución y las specs de arquitectura.
 
-- **Estado:** GDD núcleo completo y revisado dos veces. Esqueleto del repositorio creado. La constitución está esbozada como tabla de reglas con su método de comprobación, pendiente de redactar como documento propio. El plan de hitos cubre toda la fase A y esboza la fase B.
+- **Estado:** GDD núcleo completo y revisado dos veces. Esqueleto del repositorio creado. La constitución está redactada en `specs/constitution.md` y los siete ADR iniciales en `specs/adr/`; la tabla de reglas de este documento es su resumen. El plan de hitos cubre toda la fase A y esboza la fase B.
 - **Origen de las mecánicas:** lo que describe los juegos originales se marca como **recordada** (el autor la tiene clara), **por verificar** (pendiente de comprobar jugando o con guías fiables) o **adoptada** (no se sabe si era así en el original, pero se queda porque gusta). Lo que no viene del original se marca como **propia**.
 - **Marcas de versión:** lo añadido en cada revisión lleva la marca **(v2)** o **(v2.1)**. Las dos secciones siguientes lo resumen.
 - **Regla para agentes:** no inventar mecánicas de los Imperivm originales. Si falta un detalle, se pregunta al autor. Las preguntas abiertas de la sección final las responde el autor; ningún agente las da por respondidas.
@@ -280,7 +280,7 @@ plus-ultra/
 
 ## Constitución: reglas y cómo se comprueban
 
-Estas reglas servirán de base para redactar `specs/constitution.md`. Ningún agente puede romperlas. **(v2)** Cada regla lleva su método de comprobación; lo que el compilador pueda imponer, lo impone el compilador. Los presupuestos de rendimiento no son reglas y están en la sección de escala.
+La constitución está redactada en `specs/constitution.md`, con el motivo de cada regla, su comprobación, el procedimiento de cambio y el estado de las comprobaciones; esa versión manda si difieren. Esta tabla es el resumen. Ningún agente puede romper estas reglas. **(v2)** Lo que el compilador pueda imponer, lo impone el compilador. Los presupuestos de rendimiento no son reglas y están en la sección de escala.
 
 | # | Regla | Cómo se comprueba |
 | --- | --- | --- |
@@ -311,7 +311,7 @@ Estas reglas servirán de base para redactar `specs/constitution.md`. Ningún ag
 Todo el código se genera con IA siguiendo SDD: spec, plan, tareas, implementación y verificación. Las specs viven en el repo, versionadas con el código.
 
 - **Constitución:** reglas inviolables (sección anterior).
-- **ADR (v2):** una nota corta por decisión técnica cerrada, con contexto, opciones y consecuencias. Pendientes: Rust; motor propio frente a Bevy; `wgpu`; tablas y handles sin ECS; esqueleto horneado; tick de 20 Hz; guardado binario.
+- **ADR (v2):** una nota corta por decisión técnica cerrada, con contexto, opciones y consecuencias. Escritos los siete iniciales, ADR-0001 a ADR-0007, en `specs/adr/`.
 - **Arquitectura:** una spec por crate con responsabilidad, API pública y lo que no debe hacer.
 - **Features:** una spec por sistema con requisitos, criterios de aceptación medibles y casos límite.
 - **Verificación:** reglas impuestas por herramientas (cargo, clippy estricto, `cargo deny`, `cargo xtask check-arch`); benchmarks con `criterion`; tests de propiedades (nadie dentro de un muro, salud nunca negativa, grid consistente) y de determinismo en la simulación; golden images WARP contra WARP y revisión visual en el render.
@@ -432,8 +432,8 @@ Cada hito retira un riesgo concreto y tiene criterios de aceptación comprobable
 
 1. Hecho: Rust 1.99.1 y `cargo-deny` instalados, versión fijada en `rust-toolchain.toml` y las cinco comprobaciones en verde sobre el esqueleto.
 2. El autor responde las preguntas pendientes y confirma o rechaza la recomendación sobre la niebla.
-3. Redactar `specs/constitution.md` a partir de la tabla de reglas, con los presupuestos en su propia sección.
-4. Escribir los ADR iniciales: Rust; motor propio frente a Bevy; `wgpu`; tablas y handles sin ECS; esqueleto horneado; tick de 20 Hz; guardado binario.
+3. Hecho: constitución redactada en `specs/constitution.md`.
+4. Hecho: ADR-0001 a ADR-0007 en `specs/adr/`.
 5. Specs de arquitectura de `core`, `sim`, `render`, `rules` y `app`.
 6. Hito 0.
 7. Specs de features del hito 1 (cámara, selección, movimiento, combate, snapshots, guardado) y a continuación plan, tareas e implementación.

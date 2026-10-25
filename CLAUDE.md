@@ -4,7 +4,7 @@ RTS en Rust con motor propio, inspirado en Imperivm. Un solo desarrollador; todo
 
 ## Lee antes de tocar nada
 
-1. `specs/constitution.md`: reglas inviolables. Mientras no esté redactada, manda la tabla "Constitución" del GDD.
+1. `specs/constitution.md`: reglas inviolables, con su motivo y su comprobación. Manda sobre la tabla resumen del GDD.
 2. `specs/gdd/plus-ultra-dominium-contexto-gdd.md`: visión, mecánicas, arquitectura, plan de hitos y preguntas abiertas.
 3. La spec del crate o de la feature que vayas a tocar, en `specs/architecture/`, `specs/engine/` o `specs/game/`.
 4. Los ADR de `specs/adr/`, para no reabrir decisiones cerradas.
@@ -47,4 +47,4 @@ Spec, plan, tareas, implementación y verificación, en ese orden. Plantillas: `
 
 ## Estado
 
-Hito 0 en preparación. Toolchain fijado en `rust-toolchain.toml`; las cinco comprobaciones pasan sobre el esqueleto vacío. Sin constitución redactada ni ADR todavía.
+Hito 0 en preparación. Toolchain fijado; las cinco comprobaciones pasan sobre el esqueleto vacío. Constitución y ADR-0001 a ADR-0007 redactados; faltan las specs de arquitectura por crate.

@@ -1,0 +1,16 @@
+# Terminaciones de línea: LF en el repositorio y en el árbol de trabajo,
+# independientemente de core.autocrlf de cada máquina. rustfmt y
+# .editorconfig también exigen LF.
+* text=auto eol=lf
+
+# Binarios: nunca se normalizan.
+*.png binary
+*.jpg binary
+*.jpeg binary
+*.glb binary
+*.ktx2 binary
+*.dds binary
+*.wav binary
+*.ogg binary
+*.ttf binary
+*.otf binary
