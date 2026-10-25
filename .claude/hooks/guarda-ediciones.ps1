@@ -105,13 +105,12 @@ switch ($agent) {
     'autor-tests' {
         $allowed = @(
             '(?i)^(engine/[^/]+|game/[^/]+|xtask)/(tests|benches)/',
-            '(?i)^(engine/[^/]+|game/[^/]+|xtask)/Cargo\.toml$',
-            '(?i)^Cargo\.(toml|lock)$'
+            '(?i)^(engine/[^/]+|game/[^/]+|xtask)/Cargo\.toml$'
         )
         foreach ($rx in $allowed) {
             if ($rel -match $rx) { exit 0 }
         }
-        Deny "autor-tests solo escribe en <crate>/tests/, <crate>/benches/ y los Cargo.toml. Ruta: $rel"
+        Deny "autor-tests solo escribe en <crate>/tests/, <crate>/benches/ y el Cargo.toml de su crate; las dependencias del workspace las pone la tarea de contrato. Ruta: $rel"
     }
     'analista-partidas' {
         if ($rel -match '(?i)\.ron$') { exit 0 }

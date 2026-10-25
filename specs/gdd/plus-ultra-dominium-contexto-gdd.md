@@ -36,7 +36,8 @@ Este documento recoge todo lo decidido hasta ahora sobre el proyecto, para que c
 - Arquitectura ampliada con lo que faltaba: identidad y borrado, orden y desempate de eventos, tiempo entero, asignaciones, snapshots e interpolación en GPU, cadáveres, navegación jerárquica, guardado binario, streaming y frame pacing.
 - Hitos 0, 1 y 2 reescritos para que midan lo que de verdad hay que medir; la infraestructura de motor (carga de assets, escena, entrada, interfaz, depuración) queda repartida por hitos.
 - Constitución: reglas 4, 6 y 13 precisadas y tres reglas nuevas (tiempo entero, hash de datos, sin asignaciones en el camino caliente).
-- El ADR de Bevy se reescribirá con la razón real.
+- El ADR de Bevy (ADR-0002) da la razón real y el coste asumido.
+- Metodología: flujo multiagente con Claude Code (ADR-0008), planes en `specs/plans/` y bandeja de preguntas en `specs/preguntas-pendientes.md`. Las plantillas de spec llevan criterios `CA-n`, firmas concretas y presupuestos, que es lo que el flujo necesita.
 
 ## Visión
 
@@ -243,6 +244,7 @@ plus-ultra/
 │   ├── app/       # ventana, cámara, entrada, HUD, pantallas
 │   └── tools/     # editor de mapas, visor de partidas IA contra IA (v2)
 ├── xtask/         # comprobaciones de arquitectura: cargo xtask check-arch (v2.1)
+├── .claude/       # flujo multiagente: subagentes, skills de comandos y hooks (v2.1)
 ├── specs/
 │   ├── constitution.md
 │   ├── adr/       # (v2)
@@ -250,7 +252,9 @@ plus-ultra/
 │   ├── architecture/
 │   ├── engine/
 │   ├── game/
-│   └── reviews/   # (v2.1)
+│   ├── plans/     # un plan con sus tareas por cada spec implementada (v2.1)
+│   ├── reviews/   # (v2.1)
+│   └── preguntas-pendientes.md   # bandeja de dudas para el autor (v2.1)
 └── assets/
 ```
 
@@ -312,12 +316,13 @@ Todo el código se genera con IA siguiendo SDD: spec, plan, tareas, implementaci
 
 - **Constitución:** reglas inviolables (sección anterior).
 - **ADR (v2):** una nota corta por decisión técnica cerrada, con contexto, opciones y consecuencias. Escritos los siete iniciales, ADR-0001 a ADR-0007, en `specs/adr/`.
-- **Arquitectura:** una spec por crate con responsabilidad, API pública y lo que no debe hacer.
-- **Features:** una spec por sistema con requisitos, criterios de aceptación medibles y casos límite.
+- **Arquitectura:** una spec por crate con responsabilidad, API pública con firmas concretas (el contrato), dependencias permitidas, presupuestos y criterios de aceptación `CA-n`.
+- **Features:** una spec por sistema con requisitos, contratos, criterios de aceptación `CA-n` medibles, casos límite y presupuestos.
+- **Planes y preguntas (v2.1):** cada spec que se implementa tiene su plan con tareas en `specs/plans/`; las dudas que surgen al trabajar van a `specs/preguntas-pendientes.md` y solo las responde el autor.
 - **Verificación:** reglas impuestas por herramientas (cargo, clippy estricto, `cargo deny`, `cargo xtask check-arch`); benchmarks con `criterion`; tests de propiedades (nadie dentro de un muro, salud nunca negativa, grid consistente) y de determinismo en la simulación; golden images WARP contra WARP y revisión visual en el render.
 - **Revisiones (v2.1):** las revisiones externas o independientes se guardan en `specs/reviews/` como registro. No son fuente de verdad; lo adoptado se refleja aquí y en los ADR.
 - **Contexto para agentes:** `CLAUDE.md` en la raíz y uno por crate cuando exista su spec de arquitectura.
-- **Herramienta (v2, propuesta):** Claude Code con un flujo propio ligero: tres comandos para spec, plan y tareas, y las specs como única fuente de verdad. Spec Kit añade ceremonia que un desarrollador solo no necesita.
+- **Herramienta (v2, decidida en v2.1):** Claude Code con un flujo multiagente propio, descrito en la sección "Flujo multiagente" de `CLAUDE.md` y en `.claude/README.md`, y justificado en ADR-0008. La sesión principal es el orquestador y la única que escribe specs; siete comandos cubren el ciclo (`/spec`, `/planificar`, `/tareas`, `/implementar`, `/verificar`, `/integrar`, más `/estado`); ocho subagentes separan a quien escribe los tests de aceptación de quien implementa y revisan sin anclaje; cada tarea va en su worktree y se integra en serie. Para el hito 0 hay un modo ligero. Spec Kit se descartó por añadir ceremonia ajena al proyecto.
 - **Mecánicas originales:** las escribe el autor de memoria y se marcan con su origen. La IA no las inventa.
 - **Sesión de verificación (v2):** antes de escribir las specs de features del hito 3, el autor dedica una sesión a jugar Imperivm III (está en Steam como edición HD, por confirmar) con la tabla de facciones y la lista de pendientes delante: habilidades de unidades especiales, qué era mantener una aldea, abastecimiento, tope de héroes, niebla de guerra.
 - **GDD *just in time*:** el núcleo está hecho; el detalle de cada mecánica se escribe al llegar a ella.
@@ -385,7 +390,7 @@ Cada hito retira un riesgo concreto y tiene criterios de aceptación comprobable
 ## Decisiones pendientes
 
 - [x] `wgpu` frente a Vulkan directo con `ash`: **`wgpu`** (v2)
-- [x] Herramienta de SDD: **Claude Code con flujo propio** (v2, propuesta aceptada salvo objeción)
+- [x] Herramienta de SDD: **Claude Code con flujo multiagente propio** (v2.1, ADR-0008)
 - [x] Máquina de referencia y máquina mínima (v2.1)
 - [x] Ventajas de la IA: recursos extra por dificultad, como datos (v2.1)
 - [x] ECS: **ninguno**; tablas SoA con un handle común (v2.1)

@@ -15,6 +15,7 @@ Un ADR no se edita cuando cambia la decisión: se escribe otro que lo sustituye 
 | [0005](0005-animacion-esqueleto-horneado.md) | Animación de multitudes con esqueleto horneado y skinning en GPU | aceptado |
 | [0006](0006-tick-20-hz.md) | Tick de simulación a 20 Hz | aceptado |
 | [0007](0007-guardado-binario-postcard.md) | Guardado binario versionado con `postcard`; RON solo para autoría | aceptado |
+| [0008](0008-flujo-multiagente.md) | Flujo multiagente con un worktree por tarea, tests de aceptación aparte e integración en serie | aceptado |
 
 ## Candidatos a ADR en próximos hitos
 

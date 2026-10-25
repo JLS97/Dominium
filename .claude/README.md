@@ -18,7 +18,7 @@ specs/preguntas-pendientes.md   bandeja de preguntas para ti
 | Subagente | Modelo | Puede editar |
 | --- | --- | --- |
 | `explorador` | haiku | nada |
-| `autor-tests` | el de la sesión | `tests/`, `benches/` y `Cargo.toml`, solo en su worktree |
+| `autor-tests` | el de la sesión | `tests/`, `benches/` y el `Cargo.toml` de su crate, solo en su worktree |
 | `implementador` | el de la sesión | su worktree, salvo specs, `CLAUDE.md`, `.claude/`, tests de aceptación, `rust-toolchain.toml` y `deny.toml` |
 | `revisor-constitucion` | el de la sesión | nada |
 | `cazador-determinismo` | el de la sesión | nada |
@@ -66,7 +66,7 @@ La primera sesión, según el "Siguiente paso" del GDD:
 1. `/estado`: comprueba que todo se ve bien y qué queda pendiente.
 2. Contesta las preguntas abiertas del GDD que afecten al hito 0. Las demás pueden esperar.
 3. `/spec arquitectura engine_core`. Revisa y aprueba. Después `engine_sim`, y luego `engine_render`, `game_rules` y `game_app`. Las specs de arquitectura de core y sim son los contratos de todo lo demás, así que merecen calma.
-4. `/spec motor simulacion-sintetica`: la simulación sintética del hito 0, con sus criterios de aceptación (10.000 unidades, mismo hash con 1, 3, 6 y 12 hilos, cero asignaciones por tick).
+4. `/spec motor simulacion-sintetica`: la simulación sintética del hito 0. Sus criterios de aceptación recogen todas las comprobaciones de la constitución marcadas "hito 0" en su tabla de estado: avance por ticks enteros (regla 4), guardar y cargar con el mismo hash (6), sin globales mutables (7), contadores lineales de vecinos (9), carga de todos los datos (11), mismo hash con pools de 1, 3, 6 y 12 hilos (13), tipo `Tick` y sin flotantes de tiempo (17), rechazo por hash de datos (18) y cero asignaciones por tick (19), además de las 10.000 unidades sintéticas con paseo aleatorio, fases paralelas, eventos y borrados.
 5. `/planificar specs/engine/simulacion-sintetica.md`, luego `/tareas specs/plans/01-simulacion-sintetica.md`.
 6. Por cada tarea: `/implementar specs/plans/01-simulacion-sintetica.md P01-T01`, después `/verificar P01-T01` y por último `/integrar P01-T01`. En el hito 0 van de una en una, y las tareas marcadas `ligera` en el plan las hace la sesión principal sin worktree, con la puerta de comprobaciones y `revisor-constitucion` antes del commit.
 

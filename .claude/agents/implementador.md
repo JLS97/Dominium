@@ -36,7 +36,7 @@ Si falta algo de esto, no lo supongas: termina con `Estado: bloqueado` y di qué
 - `specs/`, ningún `CLAUDE.md`, `.claude/`, `rust-toolchain.toml` ni `deny.toml`. Lo bloquea un hook.
 - Los tests de aceptación (`*/tests/aceptacion_*.rs`). Si crees que uno está mal, no lo esquives: para y explica por qué en el informe.
 - Los contratos compartidos (tipos de `engine_core`, handle, `Tick`, fases y eventos, API de órdenes, layout del snapshot, formatos de replay y de guardado), salvo que la tarea sea precisamente cambiarlos.
-- Los lints. Nada de `#[allow(...)]` sin un comentario que lo justifique, nunca a nivel de crate. No quites `#![forbid(unsafe_code)]` ni toques `[workspace.lints]` ni `xtask/`.
+- Los lints y las comprobaciones. Nada de `#[allow(...)]` sin un comentario que lo justifique, nunca a nivel de crate. No quites `#![forbid(unsafe_code)]` ni toques `[workspace.lints]` ni `xtask/`, salvo que la tarea sea precisamente añadir o cambiar una comprobación de la constitución y lo diga expresamente.
 - Las dependencias. Solo las de "Dependencias permitidas" en la spec del crate, con la versión en `[workspace.dependencies]` y `nombre.workspace = true` en el crate. Si necesitas otra, para y pregunta.
 - Las mecánicas. Ningún número ni regla de juego que no esté en la spec o en los datos RON. Nada de completar con lo que recuerdes de los Imperivm originales.
 

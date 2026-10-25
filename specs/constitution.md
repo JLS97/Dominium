@@ -169,3 +169,5 @@ Los presupuestos se revisan con los datos del hito 2. Cambiarlos no exige ADR, p
 | 17 | tipo `Tick` y búsqueda de flotantes de tiempo | hito 0 |
 | 18 | rechazo por hash de datos; hot-reload tras feature de desarrollo | hito 0 |
 | 19 | asignador contador | hito 0 |
+
+Las comprobaciones marcadas "hito 0" entran como criterios de aceptación de la spec `specs/engine/simulacion-sintetica.md`; las de hitos posteriores, en la spec de la feature que las haga posibles. Cuando el test exista, esta tabla pasa a decir "hecha" en el mismo commit.

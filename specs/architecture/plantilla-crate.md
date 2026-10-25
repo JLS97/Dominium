@@ -2,7 +2,9 @@
 
 - **Carpeta:**
 - **Responsabilidad:** una frase.
-- **Reglas de la constitución que le afectan:**
+- **Reglas de la constitución que le afectan:** números y, para cada una, qué significa en este crate.
+- **ADR relacionados:**
+- **Estado:** borrador | aprobada
 
 ## Qué hace
 
@@ -10,11 +12,22 @@
 
 ## API pública
 
-Tipos y funciones que exporta, con una línea cada uno. Todo lo demás es privado.
+Es el contrato. `autor-tests` escribe contra estas firmas y los implementadores no las cambian salvo en una tarea de tipo `contrato`. Firmas concretas en Rust, no descripciones; todo lo que no esté aquí es privado.
+
+```rust
+pub struct Tick(pub u64);
+pub fn step(world: &mut World, orders: &[Order]) -> TickReport;
+```
+
+Para cada tipo o función, una línea con lo que garantiza y lo que exige del llamante.
+
+## Contratos compartidos que toca
+
+Cuáles de los contratos compartidos (handle, `Tick`, fases y eventos, API de órdenes, layout del snapshot, formatos de replay y guardado) define o usa este crate, y si esta spec los crea o solo los consume.
 
 ## Dependencias permitidas
 
-Crates del workspace y externos de los que puede depender. Cualquier otro es una violación.
+Lista cerrada: crates del workspace y externos, con la versión que irá en `[workspace.dependencies]`. Cualquier otro es una violación de las reglas 1 y 2.
 
 ## Datos y formatos
 
@@ -22,8 +35,21 @@ Qué archivos lee o escribe y en qué formato.
 
 ## Presupuestos
 
-Qué métricas de la tabla de presupuestos le corresponden.
+Qué métricas de la tabla de presupuestos de la constitución le corresponden, con sus números.
 
-## Pruebas
+## Criterios de aceptación
 
-Qué tests, benchmarks, contadores y tests de propiedades lo protegen.
+Numerados, medibles y con lo que los demuestra. `/planificar` los reparte en tareas y `autor-tests` escribe un test por criterio.
+
+- **CA-1.** Texto del criterio. Lo demuestra: test `ca_01_...` | replay | contador | métrica.
+- **CA-2.** …
+
+## Casos límite
+
+Los que rompen: cero entidades, el N máximo del presupuesto, guardar a mitad, cambiar el número de hilos, un muro añadido en caliente, lo que aplique.
+
+## Fuera de alcance
+
+## Preguntas abiertas
+
+Las responde el autor. Si una afecta a un criterio, la spec no se aprueba hasta tenerla.

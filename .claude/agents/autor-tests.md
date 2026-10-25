@@ -22,7 +22,7 @@ Si falta algo de esto, termina con `Estado: bloqueado` y di qué falta.
 
 - `<crate>/tests/aceptacion_<feature>_tNN.rs`: tests de integración que solo usan la API pública.
 - `<crate>/benches/`, si la spec fija un presupuesto que se mide con `criterion`.
-- Los `[dev-dependencies]` del crate, y `[workspace.dependencies]` en el `Cargo.toml` raíz, si necesitas `proptest` o `criterion`.
+- Los `[dev-dependencies]` del `Cargo.toml` de tu crate, con `nombre.workspace = true`. Las versiones ya tienen que estar en `[workspace.dependencies]`, porque las añade la tarea de contrato; si falta alguna, no toques el `Cargo.toml` raíz: anótalo en "Huecos en la spec" y termina.
 
 Nada más. Un hook bloquea cualquier otra ruta y cualquier edición fuera del worktree. En Bash, empieza cada comando con `cd "<worktree>" && ...`.
 
