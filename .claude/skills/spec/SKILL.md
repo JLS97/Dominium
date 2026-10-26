@@ -28,6 +28,6 @@ Redacta la spec `$ARGUMENTS`. Eres el orquestador: la escribes tú, con ayuda de
 4. **CLAUDE.md del crate.** Si la spec es de arquitectura, crea también `<carpeta del crate>/CLAUDE.md`, de 10 a 20 líneas: responsabilidad, enlace a la spec, reglas que le afectan, comandos de prueba del crate y lo que no hace nunca. En el `lib.rs` o `main.rs` del crate, quita el "(pendiente)" de la línea `Spec:`.
 5. **ADR.** Un ADR registra una decisión que ya ha tomado el autor. Si no está tomada, prepara las opciones con sus pros y contras y pregúntale. No decidas tú.
 6. **Presentación.** Muestra al autor un resumen de cinco líneas, las decisiones que has tomado tú y las preguntas abiertas. Añade las preguntas a `specs/preguntas-pendientes.md`.
-7. **Commit.** No commitees hasta que el autor apruebe. Con su aprobación: `git add` de los archivos y `git commit -m "spec: <nombre>"`.
+7. **Commit.** No commitees hasta que el autor apruebe. Con su aprobación: pon `Estado: aprobada` en la cabecera de la spec, `git add` de los archivos y `git commit -m "spec: <nombre>"`.
 
 Siguiente paso, una vez aprobada: `/planificar <ruta de la spec>`.

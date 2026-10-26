@@ -95,26 +95,6 @@
           }
         ]
       }
-    ],
-    "SubagentStop": [
-      {
-        "hooks": [
-          {
-            "type": "command",
-            "command": "powershell.exe",
-            "args": [
-              "-NoLogo",
-              "-NoProfile",
-              "-NonInteractive",
-              "-ExecutionPolicy",
-              "Bypass",
-              "-File",
-              "${CLAUDE_PROJECT_DIR}/.claude/hooks/comprobar-al-terminar.ps1"
-            ],
-            "timeout": 600
-          }
-        ]
-      }
     ]
   }
 }

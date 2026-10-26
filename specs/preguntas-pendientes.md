@@ -8,6 +8,15 @@ Cuando el autor responde, la sesión principal lleva la respuesta a la spec, al 
 
 ## Pendientes
 
-Ninguna por ahora.
+- [ ] **Q-001** · 2026-10-25 · `specs/gdd/plus-ultra-dominium-contexto-gdd.md:339` · ¿Dónde corre la CI del hito 0 y con qué runner? Contexto: el GDD exige una CI con `check-arch`, clippy, tests y `cargo deny` como entregable del hito 0, pero el repositorio no tiene remoto ni carpeta de CI, y el determinismo solo se garantiza en la misma máquina (regla 13), así que un runner Linux no puede comparar hashes dorados calculados en Windows. Depende de la pregunta 11 del GDD (plataforma). Opciones: (a) GitHub Actions con runner Windows; (b) runner Linux que solo compara ejecuciones dentro del mismo trabajo; (c) sin CI remota en el hito 0, con la puerta local antes de cada integración.
+  Respuesta:
+- [ ] **Q-002** · 2026-10-25 · `specs/gdd/plus-ultra-dominium-contexto-gdd.md:283` · ¿Qué hasher determinista usamos? Contexto: la regla 13 exige un hasher fijo y el stack del GDD dice "un hasher determinista" sin nombrarlo; la spec de `engine_core` no puede cerrar sus dependencias ni el tipo del hash de estado por tick sin esa decisión. `/spec arquitectura engine_core` presentará las opciones con pros y contras (una para mapas con claves fijas y otra para el hash de estado) y la decisión irá a un ADR.
+  Respuesta:
+- [ ] **Q-003** · 2026-10-25 · `specs/constitution.md:97` · ¿El asignador contador de la regla 19 viene de un crate externo o se escribe propio con una excepción a la regla 3? Contexto: implementar `GlobalAlloc` exige `unsafe impl`, y la regla 3 junto con `unsafe_code = "deny"` del workspace lo prohíben también en tests y benches. Opciones: (a) crate externo, elegido en la spec de simulación sintética como dependencia de desarrollo; (b) asignador propio en un archivo con excepción registrada en un ADR.
+  Respuesta:
+- [ ] **Q-004** · 2026-10-25 · `specs/constitution.md:40` · ¿Dónde viven los datos RON del hito 0 y qué contienen? Contexto: las reglas 11 y 18 se comprueban en el hito 0 (carga de todos los datos y rechazo por hash de datos), pero no existe ningún RON y `assets/README.md` declara la carpeta vacía hasta el hito 5. Opciones: (a) `assets/data/` desde ya, con los parámetros del escenario sintético; (b) otra carpeta, por ejemplo `data/`, separada de los assets de arte; (c) aplazar 11 y 18 al hito 1 y cambiar la tabla de la constitución.
+  Respuesta:
+- [ ] **Q-005** · 2026-10-25 · `specs/architecture/README.md:3` · ¿Las specs de arquitectura de `engine_tools` y `game_tools` entran en el hito 0? Contexto: el README de arquitectura pide siete specs, una por crate, y el "Siguiente paso" del GDD y la guía del autor solo prevén cinco (core, sim, render, rules y app). Opciones: (a) cinco ahora y las dos de herramientas cuando un hito las necesite; (b) las siete en el hito 0.
+  Respuesta:
 
 ## Respondidas

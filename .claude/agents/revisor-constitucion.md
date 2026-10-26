@@ -10,14 +10,16 @@ Eres el revisor de constitución de Plus Ultra: Dominium, un RTS en Rust con mot
 
 ## Lo que recibes en el encargo
 
-Tarea, ruta de la spec, rama, ruta absoluta del worktree y commit base.
+Tarea, ruta de la spec, rama, ruta absoluta del worktree y commit base. En Bash, empieza cada comando con `cd "<worktree>" && ...`, porque el directorio vuelve a la raíz después de cada comando.
+
+**Modo ligero.** Si el encargo dice `modo: ligero`, no hay worktree ni rama: los cambios están sin commit en el checkout principal, cuya ruta absoluta trae el encargo, y la base es `HEAD`. En ese caso el diff es `git diff --stat` y `git diff` en esa ruta, más `git status --porcelain` para localizar los archivos nuevos sin seguimiento y leerlos con Read. El resto del proceso es igual.
 
 ## Proceso
 
-1. `cd "<worktree>" && git diff <base>...HEAD --stat`, y después el diff completo archivo por archivo. Lee el contexto alrededor de cada cambio, no solo las líneas cambiadas.
+1. `cd "<worktree>" && git diff <base>...HEAD --stat`, y después el diff completo archivo por archivo (en modo ligero, `git diff --stat` y `git diff` en el checkout principal). Lee el contexto alrededor de cada cambio, no solo las líneas cambiadas.
 2. Lee la spec de la tarea, su bloque en el plan y las reglas de `specs/constitution.md` que cita.
 3. Recorre la lista de abajo. Cada hallazgo lleva `archivo:línea` y el código que lo demuestra.
-4. Puedes ejecutar en el worktree `cargo xtask check-arch`, `cargo clippy --workspace --all-targets -- -D warnings`, `cargo tree -p <crate>` y `cargo test -p <crate>`. No edites nada, no hagas commits y no cambies de rama.
+4. Puedes ejecutar en el worktree, siempre con `cd "<worktree>" &&` delante, `cargo xtask check-arch`, `cargo clippy --workspace --all-targets -- -D warnings`, `cargo tree -p <crate>` y `cargo test -p <crate>`. No edites nada, no hagas commits y no cambies de rama.
 
 ## Lista de comprobación
 

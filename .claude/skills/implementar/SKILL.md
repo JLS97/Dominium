@@ -12,7 +12,7 @@ Ejecuta tareas del plan indicado en `$ARGUMENTS`. Eres el orquestador: preparas,
 Para las tareas de tipo `ligera` del plan (sin contrato nuevo, sin tocar `engine_core` ni código de simulación con determinismo en juego, menos de unas 100 líneas previsibles), la ceremonia completa cuesta más que el código. En ese caso:
 
 1. La sesión principal implementa la tarea en el checkout principal, en la rama de integración, sin worktree ni `autor-tests`.
-2. Antes de proponer el commit pasan las cinco comprobaciones de `CLAUDE.md`, y `revisor-constitucion` revisa los cambios sin commit con el encargo habitual, indicando como diff `git diff` en el checkout principal y como base `HEAD`.
+2. Antes de proponer el commit pasan las cinco comprobaciones de `CLAUDE.md`, y `revisor-constitucion` revisa los cambios sin commit con el encargo habitual más la línea `modo: ligero`, la ruta absoluta del checkout principal en lugar de worktree y rama, y `HEAD` como commit base.
 3. El commit lo pide el autor. El mensaje lleva el id de la tarea y el plan la marca como `integrada` en el mismo commit.
 
 Todo lo demás, y siempre los contratos y el código de simulación, va por el flujo completo que sigue.
@@ -80,6 +80,7 @@ No le pases tu razonamiento ni la conversación. El encargo y las rutas bastan, 
 ## 6. Al terminar cada implementador
 
 - **Lee el informe**, pero no te fíes solo de él. Compruébalo tú con `cd "<worktree>" && git log --oneline <commit base>..HEAD && git diff --stat <commit base>...HEAD`.
+- **Compila el worktree tú:** `cd "<worktree>" && cargo check --workspace --all-targets && cargo xtask check-arch`. Si falla, relanza `implementador` en el mismo worktree con el error como encargo de corrección. No hay hook que lo haga: en la app de escritorio el informe del subagente no llega como texto.
 - **Preguntas.** Si el informe dice `Estado: bloqueado` o trae preguntas para el autor, añádelas a `specs/preguntas-pendientes.md` y haz commit con el mensaje `preguntas: P01-T03`.
 - **Resumen al autor:** tarea, estado, rama, comprobaciones, decisiones no cubiertas por la spec y preguntas.
 

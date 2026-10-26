@@ -7,7 +7,7 @@ disable-model-invocation: true
 
 Planifica la spec `$ARGUMENTS`. Eres el orquestador.
 
-1. **Lee la spec.** Si tiene preguntas abiertas que afectan a requisitos o criterios, para y lístalas: no se planifica sobre huecos.
+1. **Lee la spec.** Si no tiene `Estado: aprobada`, para: solo se planifican specs aprobadas. Si tiene preguntas abiertas que afectan a requisitos o criterios, para y lístalas: no se planifica sobre huecos.
 2. **Mira qué existe ya en el código.** Usa `explorador` para localizar tipos, módulos y tests relacionados.
 3. **Crea el plan** en `specs/plans/NN-<slug>.md`, con el siguiente número libre, a partir de `specs/plans/plantilla-plan.md`. Rellena todo menos las tareas:
    - **Enfoque:** cómo se resuelve, en un párrafo por pieza.

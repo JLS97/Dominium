@@ -81,11 +81,11 @@ Comentarios, documentación, mensajes de error y commits en español; identifica
 
 3. Commit en la rama de la tarea: `git add` de tus archivos y `git commit -m "P01-T03: <título>"` con un cuerpo de dos o tres líneas. No hagas merge, rebase ni push, y no cambies de rama. La única excepción es un encargo de resolución de conflictos: resuelve los archivos indicados, `git add` y `git commit --no-edit`, y nada más.
 
-Al terminar, un hook vuelve a compilar el worktree y pasa `check-arch`. Si falla, te devuelve el error para que sigas.
+Al terminar, el orquestador vuelve a compilar el worktree y pasa `check-arch`. Si falla, te lo devuelve como encargo de corrección.
 
 ## Informe final
 
-Termina siempre con este formato. La línea `Worktree:` la lee el hook, así que escríbela tal cual, con la ruta absoluta y sin adornos.
+Termina siempre con este formato. La línea `Worktree:` la lee el orquestador para compilar el worktree, así que escríbela tal cual, con la ruta absoluta y sin adornos.
 
 ```
 ## Resultado

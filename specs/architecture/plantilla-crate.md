@@ -29,6 +29,8 @@ Cuáles de los contratos compartidos (handle, `Tick`, fases y eventos, API de ó
 
 Lista cerrada: crates del workspace y externos, con la versión que irá en `[workspace.dependencies]`. Cualquier otro es una violación de las reglas 1 y 2.
 
+De desarrollo, en lista aparte: lo que solo usan tests y benches (`proptest`, `criterion`, el asignador contador…), también con su versión, porque la tarea de contrato los añade a `[workspace.dependencies]` y `autor-tests` solo puede declararlos con `nombre.workspace = true`.
+
 ## Datos y formatos
 
 Qué archivos lee o escribe y en qué formato.
