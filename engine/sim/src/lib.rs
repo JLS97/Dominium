@@ -4,5 +4,5 @@
 //! por sectores, scheduler de fases paralelas y pipeline de eventos ordenados.
 //! No conoce ni toca gráficos (regla 2 de la constitución).
 //!
-//! Spec: `specs/architecture/engine_sim.md` (pendiente).
+//! Spec: `specs/architecture/engine_sim.md`.
 #![forbid(unsafe_code)]
