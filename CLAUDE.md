@@ -84,4 +84,4 @@ Paralelismo por hito:
 
 ## Estado
 
-Hito 0 en preparación. Toolchain fijado; las cinco comprobaciones pasan sobre el esqueleto vacío. Constitución y ADR-0001 a ADR-0008 redactados; faltan las specs de arquitectura por crate. Flujo multiagente configurado en `.claude/`: subagentes, comandos como skills y hooks.
+Hito 0 en preparación. Toolchain fijado; las cinco comprobaciones pasan sobre el esqueleto vacío. Constitución y ADR-0001 a ADR-0009 redactados; faltan las specs de arquitectura de `engine_core` y `engine_sim`, que van antes del hito 0; las de render, rules y app, antes del hito 1. Flujo multiagente configurado en `.claude/`: subagentes, comandos como skills y hooks.

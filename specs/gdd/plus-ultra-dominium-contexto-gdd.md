@@ -1,14 +1,14 @@
 # Plus Ultra: Dominium — Documento de contexto y GDD núcleo
 
-25 de octubre de 2026 · **v2.1**, revisada tras la primera ronda de crítica, una revisión técnica independiente y las respuestas del autor
+26 de octubre de 2026 · **v2.2**, con las decisiones del autor previas al hito 0; la v2.1 se revisó tras la primera ronda de crítica, una revisión técnica independiente y las respuestas del autor
 
 ## Propósito del documento
 
 Este documento recoge todo lo decidido hasta ahora sobre el proyecto, para que cualquier agente de IA (o yo mismo) pueda continuar sin perder contexto. Es la fuente de verdad provisional hasta que existan la constitución y las specs de arquitectura.
 
-- **Estado:** GDD núcleo completo y revisado dos veces. Esqueleto del repositorio creado. La constitución está redactada en `specs/constitution.md` y los siete ADR iniciales en `specs/adr/`; la tabla de reglas de este documento es su resumen. El plan de hitos cubre toda la fase A y esboza la fase B.
+- **Estado:** GDD núcleo completo y revisado dos veces. Esqueleto del repositorio creado. La constitución está redactada en `specs/constitution.md` y ADR-0001 a ADR-0009 en `specs/adr/`; la tabla de reglas de este documento es su resumen. El plan de hitos cubre toda la fase A y esboza la fase B.
 - **Origen de las mecánicas:** lo que describe los juegos originales se marca como **recordada** (el autor la tiene clara), **por verificar** (pendiente de comprobar jugando o con guías fiables) o **adoptada** (no se sabe si era así en el original, pero se queda porque gusta). Lo que no viene del original se marca como **propia**.
-- **Marcas de versión:** lo añadido en cada revisión lleva la marca **(v2)** o **(v2.1)**. Las dos secciones siguientes lo resumen.
+- **Marcas de versión:** lo añadido en cada revisión lleva la marca **(v2)**, **(v2.1)** o **(v2.2)**. Las tres secciones siguientes lo resumen.
 - **Regla para agentes:** no inventar mecánicas de los Imperivm originales. Si falta un detalle, se pregunta al autor. Las preguntas abiertas de la sección final las responde el autor; ningún agente las da por respondidas.
 
 ## Cambios en la v2
@@ -38,6 +38,11 @@ Este documento recoge todo lo decidido hasta ahora sobre el proyecto, para que c
 - Constitución: reglas 4, 6 y 13 precisadas y tres reglas nuevas (tiempo entero, hash de datos, sin asignaciones en el camino caliente).
 - El ADR de Bevy (ADR-0002) da la razón real y el coste asumido.
 - Metodología: flujo multiagente con Claude Code (ADR-0008), planes en `specs/plans/` y bandeja de preguntas en `specs/preguntas-pendientes.md`. Las plantillas de spec llevan criterios `CA-n`, firmas concretas y presupuestos, que es lo que el flujo necesita.
+
+## Cambios en la v2.2
+
+- Decisiones del autor previas al hito 0, recogidas desde `specs/preguntas-pendientes.md` (Q-001 a Q-005): plataforma solo Windows en la fase A; puerta local en lugar de CI remota hasta que exista el remoto, y entonces GitHub Actions con runner Windows; hashers deterministas `rustc-hash` y xxh3 (ADR-0009); asignador contador como crate externo de desarrollo; datos RON en `data/`, separados de `assets/`; specs de arquitectura de `core` y `sim` antes del hito 0 y las de `render`, `rules` y `app` antes del hito 1.
+- Flujo multiagente: retirado el hook de fin de tarea; la compilación del worktree al terminar la hace el orquestador (consecuencias de ADR-0008).
 
 ## Visión
 
@@ -255,6 +260,7 @@ plus-ultra/
 │   ├── plans/     # un plan con sus tareas por cada spec implementada (v2.1)
 │   ├── reviews/   # (v2.1)
 │   └── preguntas-pendientes.md   # bandeja de dudas para el autor (v2.1)
+├── data/      # contenido en RON, editado a mano y sin LFS; en el hito 0, el escenario sintético (v2.2)
 └── assets/
 ```
 
@@ -267,9 +273,9 @@ plus-ultra/
 - **Datos en SoA** (structure of arrays): posiciones, salud, estado y objetivo en vectores separados, en tablas explícitas para todas las entidades.
 - **Identidad y borrado (v2.1).** Handle = slot + generación, común a todas las tablas. Tablas densas con swap-remove e indirección handle→slot y slot→handle. El borrado se difiere al final del tick y se aplica por slot descendente, nunca a mitad de una fase. Conjunto activo: las unidades de guarnición no pasan por combate ni por separación.
 - **Fases y eventos (v2.1).** Cada fase es un map sobre entrada congelada con salida por slot. Los eventos se escriben en buffers por chunk de tamaño fijo (`par_chunks(512)`, para que el número de chunks no dependa de los hilos), se concatenan en orden de chunk, se ordenan de forma estable por (objetivo, origen, tipo) y se aplican en una fase secuencial: daño, muertes, borrados. Los desempates (dos matan al mismo en el mismo tick: crédito, experiencia, oro cartaginés) salen de ese orden y se fijan en la spec de combate.
-- **Determinismo en la práctica (v2, ampliado v2.1).** Aleatoriedad sin estado: `hash(semilla, tick, handle, propósito)`. Grid espacial con orden estable (celda, slot), así el orden de los vecinos y cualquier suma de flotantes es fijo. Sin `HashMap` ni `HashSet` con el hasher por defecto en la simulación. Map paralelo sí; reducciones paralelas de flotantes no. Objetivo: determinismo en la misma máquina con cualquier número de hilos; entre plataformas no es requisito. Hash del estado cada N ticks también en release, y un buscador de desincronizaciones que hashea por sistema.
+- **Determinismo en la práctica (v2, ampliado v2.1).** Aleatoriedad sin estado: `hash(semilla, tick, handle, propósito)`. Grid espacial con orden estable (celda, slot), así el orden de los vecinos y cualquier suma de flotantes es fijo. Sin `HashMap` ni `HashSet` con el hasher por defecto en la simulación: `rustc-hash` para colecciones y xxh3 para el hash de estado y la aleatoriedad sin estado (ADR-0009, v2.2). Map paralelo sí; reducciones paralelas de flotantes no. Objetivo: determinismo en la misma máquina con cualquier número de hilos; entre plataformas no es requisito. Hash del estado cada N ticks también en release, y un buscador de desincronizaciones que hashea por sistema.
 - **Tiempo entero (v2.1).** El tick es un `u64` y las duraciones se miden en ticks; nunca segundos en flotante dentro de `sim` ni de `rules`.
-- **Asignaciones (v2.1).** Cero asignaciones en el camino caliente: arenas por hilo para vecinos, eventos y scratch de navegación; snapshots reciclados; `collect` prohibido en las fases por unidad. Un asignador contador lo comprueba en tests.
+- **Asignaciones (v2.1).** Cero asignaciones en el camino caliente: arenas por hilo para vecinos, eventos y scratch de navegación; snapshots reciclados; `collect` prohibido en las fases por unidad. Un asignador contador lo comprueba en tests: un crate externo como dependencia de desarrollo (candidato `allocation-counter`, que se verifica y fija en la spec de la simulación sintética), nunca un `GlobalAlloc` propio, que exigiría `unsafe` contra la regla 3 (v2.2).
 - **Estado canónico y derivado (v2, precisado v2.1).** Todo lo que influye en la simulación es canónico y se serializa: colas de órdenes, formaciones, peticiones de navegación pendientes, cooldowns, temporizadores de la IA, proyectiles, flujos de aleatoriedad y el hash de los datos con los que se juega. Lo derivado es función pura del canónico y se reconstruye completo y determinista al cargar; si un cálculo es incremental (un flow field a medias), su progreso es canónico. Guardado binario versionado (`postcard`); RON solo para autoría. Hot-reload solo en builds de desarrollo, porque cambiar los datos invalida los replays.
 - **Snapshots e interpolación (v2.1).** Anillo de cuatro buffers preasignados; la simulación escribe en uno libre y el render retiene el anterior y el actual, sube dos storage buffers y un alfa, y el vertex shader interpola. Unos 300 KB por tick a escala de fase B. El tiempo de render va un tick y un pequeño margen por detrás del de simulación, suavizado; sin eso hay stutter con FPS altos. Las unidades se casan por handle; las que nacen no se interpolan; las que mueren salen de la tabla viva, así que el render mantiene una lista derivada de cadáveres (handle, posición, clip, tick) alimentada por los eventos de muerte.
 - **Grid espacial** para vecinos, combate, separación y selección; las unidades se reordenan por celda cada N ticks para la caché.
@@ -277,10 +283,10 @@ plus-ultra/
 - **Render GPU-driven:** instancing, skinning en GPU con esqueleto horneado, culling y LOD en GPU, impostores en el último LOD. Cada unidad es un modelo 3D individual con su animación; el instancing solo cambia cómo se envía a la GPU.
 - **Terreno** por chunks con heightmap y sombras en cascada; streaming de chunks desde el hilo de entrada/salida con tope de subida por frame.
 - **Frame pacing (v2.1).** Modo de presentación (Mailbox frente a Fifo) decidido midiendo; resolución del temporizador del sistema ajustada en Windows; y el desfase simulación-render descrito arriba.
-- **Contenido data-driven** en RON con hot-reload en desarrollo: unidades, facciones, héroes, edificios, habilidades, plantillas de ciudad y perfiles de IA.
+- **Contenido data-driven** en RON con hot-reload en desarrollo: unidades, facciones, héroes, edificios, habilidades, plantillas de ciudad y perfiles de IA. Vive en `data/`, separado de `assets/` (v2.2).
 - **IA estratégica** (utility AI) separada de la táctica, con decisiones repartidas entre ticks y siempre a través de la API de órdenes.
 
-**Stack:** `wgpu`, `winit`, `glam`, `rayon`, `egui`, `gltf`, `meshopt`, `serde` con `ron` (autoría) y `postcard` (guardado), un hasher determinista, `kira` (candidato), `tracy-client`, `criterion`, `proptest` y `cargo deny`.
+**Stack:** `wgpu`, `winit`, `glam`, `rayon`, `egui`, `gltf`, `meshopt`, `serde` con `ron` (autoría) y `postcard` (guardado), `rustc-hash` y `xxhash-rust` con xxh3 como hashers deterministas (ADR-0009), `kira` (candidato), `tracy-client`, `criterion`, `proptest` y `cargo deny`.
 
 ## Constitución: reglas y cómo se comprueban
 
@@ -336,10 +342,10 @@ Cada hito retira un riesgo concreto y tiene criterios de aceptación comprobable
 ### Fase A: réplica
 
 **Hito 0 · Cimientos.** Riesgo que retira: una base de simulación que no sea determinista, que asigne memoria o que no escale en hilos, descubierta cuando ya hay juego encima.
-- Repositorio y workspace (hecho), constitución redactada, ADR iniciales y specs de arquitectura por crate. CI con `check-arch`, clippy, tests y `cargo deny`.
+- Repositorio y workspace (hecho), constitución redactada, ADR iniciales y specs de arquitectura de `engine_core` y `engine_sim`; las de `render`, `rules` y `app` van antes del hito 1 (v2.2). Puerta local con `check-arch`, clippy, tests y `cargo deny` antes de cada integración; CI remota en GitHub Actions con runner Windows cuando exista el remoto (v2.2).
 - Simulación sintética: una tabla de 10.000 unidades con paseo aleatorio, fases paralelas, pipeline de eventos, swap-remove con handles de generación y hash de estado por tick.
 - Aquí se fijan: el tipo de handle, el tiempo entero, el orden de fases, el pipeline de eventos, el formato de replay (semilla, hash de datos y órdenes selladas por tick) y el buscador de desincronizaciones que hashea por sistema. Carga de RON con hot-reload solo en desarrollo. `tracy` conectado.
-- Aceptación: `cargo xtask check-arch` y `cargo test` pasan; la CI falla si se rompe una regla; el binario sin gráficos avanza 10.000 ticks con 10.000 unidades sintéticas y da el mismo hash con pool de 1, 3, 6 y 12 hilos; cero asignaciones por tick tras el calentamiento.
+- Aceptación: `cargo xtask check-arch` y `cargo test` pasan; la puerta de comprobaciones falla si se rompe una regla; el binario sin gráficos avanza 10.000 ticks con 10.000 unidades sintéticas y da el mismo hash con pool de 1, 3, 6 y 12 hilos; cero asignaciones por tick tras el calentamiento.
 
 **Hito 1 · Primer combate.** Riesgo que retira: el bucle de simulación, render y entrada, y las features nativas de `wgpu`.
 - Mapa pequeño con terreno, cámara estilo Imperivm III, 2 facciones con 20 soldados cada una, selección por caja, órdenes de mover y atacar, combate cuerpo a cuerpo básico hasta que un bando gana.
@@ -411,7 +417,7 @@ Cada hito retira un riesgo concreto y tiene criterios de aceptación comprobable
 
 ## Preguntas abiertas para el autor
 
-**Respondidas (v2.1):**
+**Respondidas (v2.1 y v2.2):**
 
 1. **Máquina de referencia.** Ryzen 5 5600X, 16 GB, RTX 3070 8 GB. El autor quiere que la máquina objetivo sea peor: ver los dos niveles de máquina en la sección de escala.
 2. **Dedicación.** Mucha.
@@ -419,6 +425,7 @@ Cada hito retira un riesgo concreto y tiene criterios de aceptación comprobable
 5. **Niebla de guerra.** El autor prefería jugar sin ella. Recomendación en la sección de mecánicas, pendiente de confirmar.
 7. **Arte.** Hay algo de presupuesto y el autor puede generar y modelar. Estrategia híbrida en la sección de arte.
 8. **Relación entre IAs.** Se pelean entre sí.
+11. **Plataforma.** Solo Windows en la fase A (v2.2). La CI, cuando exista el remoto, corre en un runner Windows.
 
 **Pendientes:**
 
@@ -426,7 +433,6 @@ Cada hito retira un riesgo concreto y tiene criterios de aceptación comprobable
 6. **Héroe-ejército.** ¿Opción a), b) o c) para la fase A? ¿Recuerdas si en el original las unidades sin héroe podían actuar con normalidad?
 9. **Asedio y naval.** ¿Máquinas de asedio en la fase A? ¿Unidades navales fuera de alcance?
 10. **Ritmo.** ¿Quieres pausa con órdenes y control de velocidad de partida? Cambia el diseño de la IA táctica y de la interfaz.
-11. **Plataforma.** ¿Solo Windows? Linux afecta al adaptador por software y a las pruebas.
 12. **Condiciones de victoria.** ¿Eliminación total o también rendición, control de territorio o tiempo?
 13. **Alcance del hito 3.** ¿Qué facción estándar quieres como primera jugable?
 14. **Alianzas (nueva).** Las IAs se pelean entre sí. ¿Quieres además alianzas o diplomacia, aunque sea en fase B?
@@ -439,6 +445,6 @@ Cada hito retira un riesgo concreto y tiene criterios de aceptación comprobable
 2. El autor responde las preguntas pendientes y confirma o rechaza la recomendación sobre la niebla.
 3. Hecho: constitución redactada en `specs/constitution.md`.
 4. Hecho: ADR-0001 a ADR-0007 en `specs/adr/`.
-5. Specs de arquitectura de `core`, `sim`, `render`, `rules` y `app`.
+5. Specs de arquitectura de `core` y `sim`. Las de `render`, `rules` y `app`, antes del hito 1; las de `engine_tools` y `game_tools`, cuando un hito pida su primer binario (v2.2).
 6. Hito 0.
 7. Specs de features del hito 1 (cámara, selección, movimiento, combate, snapshots, guardado) y a continuación plan, tareas e implementación.

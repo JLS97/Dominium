@@ -32,7 +32,8 @@ engine/   motor: core, sim, render, tools (sin conceptos de juego)
 game/     juego: rules, app, tools
 xtask/    tareas de repositorio
 specs/    constitución, ADR, GDD, specs de arquitectura y de features
-assets/   contenido (vacío hasta el hito 5)
+data/     contenido en RON: unidades, facciones, perfiles de IA; en el hito 0, el escenario sintético
+assets/   arte y audio (vacío hasta el hito 5)
 ```
 
 ## Estado
