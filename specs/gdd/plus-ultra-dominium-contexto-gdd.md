@@ -50,6 +50,7 @@ Este documento recoge todo lo decidido hasta ahora sobre el proyecto, para que c
 - Decisiones del autor Q-006 a Q-011 (`specs/preguntas-pendientes.md`): hash de datos de 64 bits; columnas SoA a bytes con la API segura de `bytemuck`; solo `engine_core` declara `rustc-hash`, `xxhash-rust` y `bytemuck`, y los demás usan sus reexports; varios números aleatorios de la misma tupla por un índice dentro del propósito, sin contador canónico; solo los `*.ron` de `data/` entran en el hash de datos; y `-C target-cpu` y `-C target-feature` prohibidos en el workspace hasta que el hito 2 mida, vigilados por `check-arch`.
 - Plan P01 de `engine_core` en borrador (`specs/plans/01-engine-core.md`): diez tareas en serie, tres de ellas de contrato.
 - Stack: `thiserror` para los errores de los crates y `allocation-counter` como contador de asignaciones en tests (Q-003, fijado en la spec de `engine_core`).
+- Remoto en GitHub, `JLS97/Dominium`, público, y CI en GitHub Actions con runner Windows que ejecuta la puerta de `CLAUDE.md` en cada push a `main` y en cada pull request (Q-001). El historial se reescribió el 30 de octubre de 2026 para que todos los commits lleven la identidad de GitHub del autor.
 
 ## Visión
 
@@ -349,7 +350,7 @@ Cada hito retira un riesgo concreto y tiene criterios de aceptación comprobable
 ### Fase A: réplica
 
 **Hito 0 · Cimientos.** Riesgo que retira: una base de simulación que no sea determinista, que asigne memoria o que no escale en hilos, descubierta cuando ya hay juego encima.
-- Repositorio y workspace (hecho), constitución redactada, ADR iniciales y specs de arquitectura de `engine_core` y `engine_sim`; las de `render`, `rules` y `app` van antes del hito 1 (v2.2). Puerta local con `check-arch`, clippy, tests y `cargo deny` antes de cada integración; CI remota en GitHub Actions con runner Windows cuando exista el remoto (v2.2).
+- Repositorio y workspace (hecho), constitución redactada, ADR iniciales y specs de arquitectura de `engine_core` y `engine_sim`; las de `render`, `rules` y `app` van antes del hito 1 (v2.2). Puerta local con `check-arch`, clippy, tests y `cargo deny` antes de cada integración; CI remota en GitHub Actions con runner Windows cuando exista el remoto (v2.2), que existe desde el 30 de octubre de 2026: `JLS97/Dominium`, con la puerta en `.github/workflows/ci.yml` (v2.3).
 - Simulación sintética: una tabla de 10.000 unidades con paseo aleatorio, fases paralelas, pipeline de eventos, swap-remove con handles de generación y hash de estado por tick.
 - Aquí se fijan: el tipo de handle, el tiempo entero, el orden de fases, el pipeline de eventos, el formato de replay (semilla, hash de datos y órdenes selladas por tick) y el buscador de desincronizaciones que hashea por sistema. Carga de RON con hot-reload solo en desarrollo. `tracy` conectado.
 - Aceptación: `cargo xtask check-arch` y `cargo test` pasan; la puerta de comprobaciones falla si se rompe una regla; el binario sin gráficos avanza 10.000 ticks con 10.000 unidades sintéticas y da el mismo hash con pool de 1, 3, 6 y 12 hilos; cero asignaciones por tick tras el calentamiento.
@@ -432,7 +433,7 @@ Cada hito retira un riesgo concreto y tiene criterios de aceptación comprobable
 5. **Niebla de guerra.** El autor prefería jugar sin ella. Recomendación en la sección de mecánicas, pendiente de confirmar.
 7. **Arte.** Hay algo de presupuesto y el autor puede generar y modelar. Estrategia híbrida en la sección de arte.
 8. **Relación entre IAs.** Se pelean entre sí.
-11. **Plataforma.** Solo Windows en la fase A (v2.2). La CI, cuando exista el remoto, corre en un runner Windows.
+11. **Plataforma.** Solo Windows en la fase A (v2.2). La CI corre en un runner Windows (`.github/workflows/ci.yml`, v2.3).
 
 **Pendientes:**
 

@@ -1,0 +1,74 @@
+# CI de Plus Ultra: Dominium (Q-001 de specs/preguntas-pendientes.md).
+#
+# Ejecuta en un runner Windows la misma puerta que CLAUDE.md exige antes de dar
+# algo por terminado: formato, clippy estricto, tests, check-arch y cargo deny.
+# Windows porque la plataforma de la fase A es x86_64-pc-windows-msvc y el
+# determinismo solo se garantiza en la misma plataforma (regla 13): los hashes
+# dorados que genere el autor en su máquina tienen que valer aquí, y por eso
+# tampoco se activa ningún `-C target-cpu` ni `-C target-feature` (Q-011).
+#
+# El toolchain sale de rust-toolchain.toml, que es la única fuente de la versión
+# del compilador; aquí no se repite el número.
+
+name: CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+# En los pull requests solo importa el último estado; en main cada commit
+# integrado recibe su veredicto, para poder bisecar un cambio de hash dorado.
+concurrency:
+  group: ci-${{ github.ref }}
+  cancel-in-progress: ${{ github.event_name == 'pull_request' }}
+
+env:
+  CARGO_TERM_COLOR: always
+  CARGO_INCREMENTAL: "0"
+  RUST_BACKTRACE: "1"
+
+jobs:
+  puerta:
+    name: Puerta en Windows
+    runs-on: windows-latest
+    timeout-minutes: 60
+    steps:
+      - name: Código
+        uses: actions/checkout@v4
+
+      - name: Toolchain de rust-toolchain.toml
+        run: |
+          rustup toolchain install
+          rustup show active-toolchain
+
+      - name: Caché de cargo
+        uses: Swatinem/rust-cache@v2
+
+      - name: cargo-deny
+        uses: taiki-e/install-action@v2
+        with:
+          tool: cargo-deny@0.20.2
+
+      - name: Formato
+        run: cargo fmt --all -- --check
+
+      - name: Clippy
+        run: cargo clippy --workspace --all-targets -- -D warnings
+
+      - name: Tests
+        run: cargo test --workspace
+
+      - name: Arquitectura (reglas 1, 2, 3 y 16)
+        run: cargo xtask check-arch
+
+      - name: Dependencias y licencias
+        run: cargo deny check
+
+# Pendiente, con las primeras tareas de engine_core y engine_sim: la puerta
+# adicional de cada crate (tests en release, feature `tracy` y `cargo doc` sin
+# avisos), tal como la declaran sus specs de arquitectura.
