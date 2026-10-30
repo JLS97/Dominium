@@ -3,7 +3,7 @@
 - **Spec:** `specs/architecture/engine_core.md` (aprobada el 26 de octubre de 2026)
 - **Hito:** 0
 - **Rama de integración:** main
-- **Estado:** aprobado
+- **Estado:** en curso
 
 ## Enfoque
 
