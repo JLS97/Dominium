@@ -477,13 +477,18 @@ pub fn parse_ron<T: DeserializeOwned>(text: &str) -> Result<T, DataError>;
 /// `source.kind() == InvalidData`.
 pub fn load_ron<T: DeserializeOwned>(path: &Path) -> Result<T, DataError>;
 
-/// Mensajes en español.
+/// Mensajes en español, fijados en P01-T03. El de `Io` incluye el texto del sistema, que Windows localiza:
+/// los tests comparan variantes y `source.kind()`, nunca `to_string()`.
 #[derive(Debug, thiserror::Error)]
 pub enum DataError {
+    #[error("error de entrada/salida en `{}`: {source}", .path.display())]
     Io { path: PathBuf, #[source] source: std::io::Error },
     /// Un nombre de archivo o de carpeta que no es UTF-8.
+    #[error("ruta de datos que no es UTF-8: `{}`", .path.display())]
     InvalidPath { path: PathBuf },
-    /// `line` y `column` empiezan en 1. `path` es `None` cuando viene de `parse_ron`.
+    /// `line` y `column` empiezan en 1. `path` es `None` cuando viene de `parse_ron`; con ruta, el mensaje
+    /// intercala `` en `ruta` `` tras "RON".
+    #[error("error de sintaxis RON{} en la línea {line}, columna {column}: {message}", /* ` en `ruta`` o nada */)]
     Parse { path: Option<PathBuf>, line: u32, column: u32, message: String },
 }
 ```
