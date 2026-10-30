@@ -110,7 +110,7 @@ impl Ticks {
     #[must_use]
     pub const fn checked_sub(self, rhs: Ticks) -> Option<Ticks>;
     /// Duración en tiempo de pared: `self * TICK_DURATION`. Para la app y las herramientas; nunca para la simulación.
-    /// No desborda: `u64::MAX` ticks son 9,2·10^17 segundos y `Duration` llega a 1,8·10^19.
+    /// No desborda: `u64::MAX` ticks son menos de 2^60 segundos y `Duration` llega a 2^64 segundos.
     #[must_use]
     pub const fn to_wall_duration(self) -> Duration;
 }
