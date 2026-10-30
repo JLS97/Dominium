@@ -3,7 +3,7 @@
 - **Spec:** `specs/architecture/engine_core.md` (aprobada el 26 de octubre de 2026)
 - **Hito:** 0
 - **Rama de integración:** main
-- **Estado:** borrador
+- **Estado:** aprobado
 
 ## Enfoque
 
@@ -128,10 +128,151 @@ Lo que espera a este plan: el plan de `engine_sim` no empieza hasta que estén i
 
 ## Tareas
 
-Pendiente de `/tareas`. El reparto previsto está en la spec, sección "Reparto previsto en tareas": diez tareas en serie, tres de ellas de contrato.
+Diez tareas en serie, según el "Reparto previsto en tareas" de la spec. Ninguna es `ligera`: todas crean o cambian contratos o tocan `engine_core`, salvo la última, que cambia la comprobación de la constitución y pasa de las 100 líneas. Worktree `.worktrees/p01-tNN`, rama `tarea/p01-tNN-<slug>`. La puerta adicional de `engine_core` (sección "Verificación") corre en todas las tareas que tocan `engine/core`.
+
+### P01-T01 · Contrato A: dependencias, `clippy.toml` y firmas de `time`, `handle`, `version`, `collections` y `math`
+
+- **Tipo:** contrato
+- **Crate:** `engine_core`; además el `Cargo.toml` raíz (`[workspace.dependencies]`), `engine/sim/clippy.toml` y `game/rules/clippy.toml`, porque son contrato compartido y ninguna otra tarea debe tocarlos
+- **Depende de:** ninguna
+- **Contrato que usa:** ninguno; define `time`, `handle`, `version`, `collections`, `math`, la feature `tracy`, las doce entradas de `[workspace.dependencies]` y los tres `clippy.toml`
+- **Criterios que cubre:** ninguno directamente. Deja preparados CA-21 (`#![forbid(unsafe_code)]` y `#![deny(missing_docs)]` en `lib.rs`) y CA-22 (los tres `clippy.toml` idénticos), que verifica P01-T02. Se verifica con la puerta completa en verde más `cargo check --workspace --all-targets`, y con `revisor-constitucion` comprobando que las firmas son las de la spec
+- **Tests de aceptación:** ninguno, porque es contrato: los cuerpos son `todo!()` y los tests llegan con P01-T02
+- **Paralelizable:** no, porque toca `engine_core` y el `Cargo.toml` raíz
+- **Revisores:** revisor-constitucion, cazador-determinismo
+- **Fuera de alcance:** cualquier cuerpo que no sea `todo!()`; los módulos `hash`, `rng`, `data`, `save` y `profile` (contratos B1 y B2); los tests; el contenido de los benchmarks más allá de `fn main() {}`
+- **Estado:** pendiente
+
+### P01-T02 · `time`, `handle`, `version`, `collections` y `math`
+
+- **Tipo:** implementación
+- **Crate:** `engine_core`
+- **Depende de:** P01-T01
+- **Contrato que usa:** `time`, `handle`, `version`, `collections`, `math` de P01-T01
+- **Criterios que cubre:** CA-1, CA-2, CA-3, CA-4, CA-5, CA-20, CA-22
+- **Tests de aceptación:** `engine/core/tests/aceptacion_core_t02.rs`. CA-1 y CA-2 se corren también con `--release`. La prueba negativa de CA-22 (línea con `std::collections::HashMap` dentro de una función) la hace y retira el orquestador en el worktree durante `/verificar`
+- **Paralelizable:** no, porque toca `engine_core`
+- **Revisores:** revisor-constitucion, cazador-determinismo
+- **Fuera de alcance:** cambiar una firma del contrato A; `hash`, `rng`, `data`, `save`, `profile`; los benchmarks
+- **Estado:** pendiente
+
+### P01-T03 · Contrato B1: firmas de `hash`, `rng` y `data`
+
+- **Tipo:** contrato
+- **Crate:** `engine_core`
+- **Depende de:** P01-T02
+- **Contrato que usa:** `Handle`, `Tick`, `Version` y `math` de P01-T01; define `hash` (incluido el reexport de `bytemuck`), `rng` y `data`. Van juntos porque `hash` necesita `DataHash` de `data` y `Seed` de `rng`
+- **Criterios que cubre:** ninguno directamente. Se verifica con la puerta completa en verde, `cargo test -p engine_core --no-run` y `revisor-constitucion` sobre las firmas
+- **Tests de aceptación:** ninguno, porque es contrato
+- **Paralelizable:** no, porque toca `engine_core`
+- **Revisores:** revisor-constitucion, cazador-determinismo
+- **Fuera de alcance:** cualquier cuerpo que no sea `todo!()`, salvo las constantes (`DATA_EXTENSION`) y las derivaciones; `save` y `profile`
+- **Estado:** pendiente
+
+### P01-T04 · Contrato B2: firmas de `save` y `profile`
+
+- **Tipo:** contrato
+- **Crate:** `engine_core`
+- **Depende de:** P01-T03
+- **Contrato que usa:** `Version` de P01-T01, `DataHash` y `StateHash` de P01-T03; define `save`, `profile`, las macros `span!` y `plot!` y las dos variantes por feature `tracy`
+- **Criterios que cubre:** ninguno directamente. Se verifica con la puerta completa en verde, `cargo test -p engine_core --no-run`, `cargo check -p engine_core --features tracy --all-targets` y `revisor-constitucion` sobre las firmas
+- **Tests de aceptación:** ninguno, porque es contrato
+- **Paralelizable:** no, porque toca `engine_core`
+- **Revisores:** revisor-constitucion, cazador-determinismo
+- **Fuera de alcance:** cualquier cuerpo que no sea `todo!()`, salvo `MAGIC`, `ENVELOPE_VERSION` y las derivaciones; si `tracy-client` no compila en la máquina del autor, la tarea termina `bloqueada` y lo decide el autor
+- **Estado:** pendiente
+
+### P01-T05 · `hash` y `DataHash::of_bytes`
+
+- **Tipo:** implementación
+- **Crate:** `engine_core`
+- **Depende de:** P01-T04
+- **Contrato que usa:** `hash` y `DataHash` de P01-T03; `Handle` y `math` de P01-T01
+- **Criterios que cubre:** CA-6, CA-7, CA-8
+- **Tests de aceptación:** `engine/core/tests/aceptacion_core_t05.rs`, con `xxhash-rust` como dependencia de desarrollo para la referencia de CA-8
+- **Paralelizable:** no, porque toca `engine_core`
+- **Revisores:** revisor-constitucion, cazador-determinismo
+- **Fuera de alcance:** el resto de `data` (`list_data_files`, `hash_data_tree`, `parse_ron`, `load_ron`); `rng`; el benchmark `hash_estado.rs`. Si el diff pasa de 400 líneas, se parte según el riesgo anotado: `StateHasher` con primitivos primero, implementaciones compuestas, vectores de `glam` y `write_handles` después, y la segunda mitad pasa a ser P01-T05b con el mismo archivo de tests
+- **Estado:** pendiente
+
+### P01-T06 · `rng`
+
+- **Tipo:** implementación
+- **Crate:** `engine_core`
+- **Depende de:** P01-T05
+- **Contrato que usa:** `rng` de P01-T03; `Tick` y `Handle` de P01-T01
+- **Criterios que cubre:** CA-9, CA-10
+- **Tests de aceptación:** `engine/core/tests/aceptacion_core_t06.rs`. CA-9 se corre también con `--release`
+- **Paralelizable:** no, porque toca `engine_core`
+- **Revisores:** revisor-constitucion, cazador-determinismo
+- **Fuera de alcance:** el benchmark `rng.rs`; cualquier aleatoriedad con estado
+- **Estado:** pendiente
+
+### P01-T07 · `data` salvo `of_bytes`
+
+- **Tipo:** implementación
+- **Crate:** `engine_core`
+- **Depende de:** P01-T06
+- **Contrato que usa:** `data` de P01-T03; `StateHasher` y `DataHash::of_bytes` de P01-T05
+- **Criterios que cubre:** CA-15, CA-16
+- **Tests de aceptación:** `engine/core/tests/aceptacion_core_t07.rs`, con carpetas bajo `CARGO_TARGET_TMPDIR`; `ca_15_nombre_no_utf8_es_invalid_path` bajo `#[cfg(windows)]`
+- **Paralelizable:** no, porque toca `engine_core`
+- **Revisores:** revisor-constitucion, cazador-determinismo
+- **Fuera de alcance:** qué archivos RON existen y sus structs (spec de la simulación sintética); seguir enlaces simbólicos; hot-reload
+- **Estado:** pendiente
+
+### P01-T08 · `save`
+
+- **Tipo:** implementación
+- **Crate:** `engine_core`
+- **Depende de:** P01-T07
+- **Contrato que usa:** `save` de P01-T04; `Version` de P01-T01; `DataHash` de P01-T05
+- **Criterios que cubre:** CA-11, CA-12, CA-13, CA-14
+- **Tests de aceptación:** `engine/core/tests/aceptacion_core_t08.rs`, con `postcard` como dependencia de desarrollo para los vectores de CA-11 y `allocation-counter` para CA-14
+- **Paralelizable:** no, porque toca `engine_core`
+- **Revisores:** revisor-constitucion, cazador-determinismo
+- **Fuera de alcance:** el cuerpo del guardado y del replay y sus migraciones (`engine_sim`, `game_rules`); el benchmark `sobre.rs`
+- **Estado:** pendiente
+
+### P01-T09 · Cierre: `profile`, benchmarks y criterios transversales
+
+- **Tipo:** implementación
+- **Crate:** `engine_core`
+- **Depende de:** P01-T08
+- **Contrato que usa:** `profile` de P01-T04 y todos los módulos anteriores
+- **Criterios que cubre:** CA-17, CA-18, CA-19, CA-21
+- **Tests de aceptación:** `engine/core/tests/aceptacion_core_t09.rs`; `ca_17_perfilado_con_feature_no_hace_panico` se corre con `cargo test -p engine_core --features tracy`. CA-19 es métrica: los tres benchmarks corren con `cargo bench -p engine_core`, sin umbral. Los dos `cargo tree` de CA-21 los compara el orquestador con "Dependencias permitidas" en `/verificar`
+- **Paralelizable:** no, porque toca `engine_core`
+- **Revisores:** revisor-constitucion, cazador-determinismo
+- **Fuera de alcance:** umbrales de rendimiento (hito 2); una vía en bloque para `Option<Handle>`
+- **Estado:** pendiente
+
+### P01-T10 · Extensión de `check-arch` en `xtask`
+
+- **Tipo:** implementación
+- **Crate:** `xtask`. El encargo autoriza expresamente tocar `xtask/`
+- **Depende de:** P01-T01, porque vigila las dependencias que ese contrato declara. Va la última para comprobar el workspace tal como queda
+- **Contrato que usa:** ninguno de `engine_core`; define `xtask` como biblioteca con `direct_dependency_violations` y `cargo_config_violations`
+- **Criterios que cubre:** CA-23
+- **Tests de aceptación:** `xtask/tests/aceptacion_check_arch_t10.rs`, con entradas construidas a mano. La prueba negativa (`rustc-hash.workspace = true` en `engine/sim/Cargo.toml`) la hace y retira el orquestador en el worktree
+- **Paralelizable:** sí, en principio, porque no toca `engine_core`; no se aprovecha, porque el hito 0 es secuencial y la tarea es corta
+- **Revisores:** revisor-constitucion
+- **Fuera de alcance:** cualquier comprobación nueva que no esté en CA-23; cambiar las comprobaciones existentes de las reglas 1, 2, 3 y 16 más allá de moverlas a funciones puras
+- **Estado:** pendiente
 
 ## Oleadas
 
-Pendiente de `/tareas`.
+| Oleada | Tareas | Nota |
+| --- | --- | --- |
+| 1 | P01-T01 | contrato A, va sola; abre las dependencias del workspace |
+| 2 | P01-T02 | primera implementación; valida el contrato A antes de seguir |
+| 3 | P01-T03 | contrato B1, va solo |
+| 4 | P01-T04 | contrato B2, va solo; prueba que `tracy-client` compila |
+| 5 | P01-T05 | `hash`; puede partirse en dos si pasa de 400 líneas |
+| 6 | P01-T06 | `rng` |
+| 7 | P01-T07 | `data` |
+| 8 | P01-T08 | `save`; al integrarse, puede empezar `/planificar` de `engine_sim` |
+| 9 | P01-T09 | cierre; primera vez que corre entera la puerta adicional, con `--features tracy` y `cargo bench` |
+| 10 | P01-T10 | `check-arch`; comprueba el workspace final |
 
-**Camino crítico:** pendiente de `/tareas`; con todo en serie, es la suma de las diez tareas.
+**Camino crítico:** las diez tareas, en serie: P01-T01 → P01-T02 → P01-T03 → P01-T04 → P01-T05 → P01-T06 → P01-T07 → P01-T08 → P01-T09 → P01-T10. P01-T10 podría salir de la cadena, pero no acorta nada mientras solo haya una implementación a la vez. El plan de `engine_sim` se desbloquea al integrarse P01-T08.
