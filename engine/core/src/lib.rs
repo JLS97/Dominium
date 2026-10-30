@@ -5,3 +5,10 @@
 //!
 //! Spec: `specs/architecture/engine_core.md`.
 #![forbid(unsafe_code)]
+#![deny(missing_docs)]
+
+pub mod collections;
+pub mod handle;
+pub mod math;
+pub mod time;
+pub mod version;

@@ -8,4 +8,38 @@ description = "Base del motor: matemáticas, tiempo en ticks, handles, serializa
 [lints]
 workspace = true
 
+[features]
+# Perfilado con Tracy. Apagada por defecto; la activan las builds de medición
+# del autor y la puerta adicional del crate.
+tracy = ["dep:tracy-client"]
+
 [dependencies]
+glam.workspace = true
+serde.workspace = true
+postcard.workspace = true
+ron.workspace = true
+rustc-hash.workspace = true
+xxhash-rust.workspace = true
+bytemuck.workspace = true
+thiserror.workspace = true
+tracy-client = { workspace = true, optional = true }
+
+[dev-dependencies]
+proptest.workspace = true
+criterion.workspace = true
+allocation-counter.workspace = true
+# Los tests de CA-4, CA-8 y CA-9 comparan con la implementación de referencia.
+xxhash-rust.workspace = true
+postcard.workspace = true
+
+[[bench]]
+name = "hash_estado"
+harness = false
+
+[[bench]]
+name = "sobre"
+harness = false
+
+[[bench]]
+name = "rng"
+harness = false

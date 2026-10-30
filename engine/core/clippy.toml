@@ -1,0 +1,10 @@
+# Regla 13 de la constitución y ADR-0009: dentro de engine_core, engine_sim y
+# game_rules ninguna colección con hash usa el hasher por defecto de la
+# biblioteca estándar, porque SipHash se siembra al azar en cada proceso y
+# rompería el determinismo. Se usan los alias de `engine_core::collections`.
+# Este archivo es idéntico en engine/core/, engine/sim/ y game/rules/ (CA-22).
+disallowed-types = [
+    { path = "std::collections::HashMap", reason = "regla 13 y ADR-0009: hasher sembrado al azar; usa `engine_core::collections::FxHashMap`" },
+    { path = "std::collections::HashSet", reason = "regla 13 y ADR-0009: hasher sembrado al azar; usa `engine_core::collections::FxHashSet`" },
+    { path = "std::hash::RandomState", reason = "regla 13 y ADR-0009: estado aleatorio por proceso; usa `engine_core::collections::FxBuildHasher`" },
+]
