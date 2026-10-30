@@ -5,9 +5,6 @@
 //! operaciones dan el mismo resultado en cualquier proceso e hilo, pero el
 //! orden de iteración sigue siendo arbitrario y no puede influir en la
 //! simulación.
-// Contrato A: los cuerpos son marcadores pendientes y no usan sus parámetros.
-// `expect` obliga a P01-T02 a retirar esta línea al implementar el módulo.
-#![expect(unused_variables, reason = "cuerpos pendientes de P01-T02")]
 
 /// Mapa con hasher fijo (ADR-0009). Se construye con `FxHashMap::default()` o con `fx_map_with_capacity`.
 /// Garantiza el mismo resultado para la misma secuencia de operaciones. No garantiza ningún orden de iteración:
@@ -21,11 +18,11 @@ pub use rustc_hash::{FxBuildHasher, FxHasher};
 /// Reserva `capacity` entradas. Asigna: no es para el camino caliente.
 #[must_use]
 pub fn fx_map_with_capacity<K, V>(capacity: usize) -> FxHashMap<K, V> {
-    todo!("P01-T02")
+    FxHashMap::with_capacity_and_hasher(capacity, FxBuildHasher)
 }
 
 /// Reserva `capacity` elementos. Asigna: no es para el camino caliente.
 #[must_use]
 pub fn fx_set_with_capacity<T>(capacity: usize) -> FxHashSet<T> {
-    todo!("P01-T02")
+    FxHashSet::with_capacity_and_hasher(capacity, FxBuildHasher)
 }

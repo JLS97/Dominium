@@ -1,9 +1,6 @@
 //! Handle común a todas las tablas del motor (ADR-0004): slot más generación.
 //!
 //! Este archivo no contiene ningún flotante: CA-2 lee su texto.
-// Contrato A: los cuerpos son marcadores pendientes y no usan sus parámetros.
-// `expect` obliga a P01-T02 a retirar esta línea al implementar el módulo.
-#![expect(unused_variables, reason = "cuerpos pendientes de P01-T02")]
 
 use core::num::NonZeroU32;
 
@@ -30,48 +27,59 @@ impl Handle {
     /// Construye un handle a partir de su slot y su generación.
     #[must_use]
     pub const fn new(slot: u32, generation: NonZeroU32) -> Handle {
-        panic!("P01-T02: pendiente de implementar")
+        Handle { slot, generation }
     }
 
     /// El slot del handle.
     #[must_use]
     pub const fn slot(self) -> u32 {
-        panic!("P01-T02: pendiente de implementar")
+        self.slot
     }
 
     /// `slot` como `usize`. Qué indexa lo fija la spec de `engine_sim`.
     #[must_use]
     pub const fn index(self) -> usize {
-        panic!("P01-T02: pendiente de implementar")
+        self.slot as usize
     }
 
     /// La generación del handle. Nunca es 0.
     #[must_use]
     pub const fn generation(self) -> NonZeroU32 {
-        panic!("P01-T02: pendiente de implementar")
+        self.generation
     }
 
     /// `(slot << 32) | generation`. Es la forma que entra en el hash de estado y en la aleatoriedad sin estado.
     #[must_use]
     pub const fn to_raw(self) -> u64 {
-        panic!("P01-T02: pendiente de implementar")
+        ((self.slot as u64) << 32) | (self.generation.get() as u64)
     }
 
     /// Inversa de `to_raw`. `None` si los 32 bits bajos son 0.
     #[must_use]
     pub const fn from_raw(raw: u64) -> Option<Handle> {
-        panic!("P01-T02: pendiente de implementar")
+        // El desplazamiento y la máscara dejan cada mitad dentro de 32 bits antes del cast.
+        let slot = (raw >> 32) as u32;
+        match NonZeroU32::new((raw & 0xFFFF_FFFF) as u32) {
+            Some(generation) => Some(Handle { slot, generation }),
+            None => None,
+        }
     }
 
     /// La generación que sigue a `generation` cuando un slot se libera: suma 1 y de `u32::MAX` vuelve a 1, nunca a 0.
     #[must_use]
     pub const fn next_generation(generation: NonZeroU32) -> NonZeroU32 {
-        panic!("P01-T02: pendiente de implementar")
+        match generation.checked_add(1) {
+            Some(next) => next,
+            None => Handle::FIRST_GENERATION,
+        }
     }
 }
 
 /// `handle.to_raw()`, o 0 si no hay handle. Para el sujeto de `rng::random_u64` cuando la extracción no es de una entidad.
 #[must_use]
 pub const fn raw_or_zero(handle: Option<Handle>) -> u64 {
-    panic!("P01-T02: pendiente de implementar")
+    match handle {
+        Some(handle) => handle.to_raw(),
+        None => 0,
+    }
 }

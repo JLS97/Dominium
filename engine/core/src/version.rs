@@ -1,7 +1,4 @@
 //! Versión del juego, leída del manifiesto al compilar.
-// Contrato A: los cuerpos son marcadores pendientes y no usan sus parámetros.
-// `expect` obliga a P01-T02 a retirar esta línea al implementar el módulo.
-#![expect(unused_variables, reason = "cuerpos pendientes de P01-T02")]
 
 use core::fmt;
 
@@ -24,13 +21,17 @@ impl Version {
     /// Construye una versión a partir de sus tres componentes.
     #[must_use]
     pub const fn new(major: u16, minor: u16, patch: u16) -> Version {
-        panic!("P01-T02: pendiente de implementar")
+        Version {
+            major,
+            minor,
+            patch,
+        }
     }
 }
 
 impl fmt::Display for Version {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
-        todo!("P01-T02")
+        write!(f, "{}.{}.{}", self.major, self.minor, self.patch)
     }
 }
 
