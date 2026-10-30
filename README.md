@@ -38,4 +38,4 @@ assets/   arte y audio (vacío hasta el hito 5)
 
 ## Estado
 
-Esqueleto del workspace creado el 25 de octubre de 2026 y verificado: formato, clippy estricto, tests, `check-arch` y cargo deny pasan con el toolchain fijado. Ningún crate tiene código de juego todavía. El hito 0 está descrito en el GDD.
+Esqueleto del workspace creado el 25 de octubre de 2026 y verificado: formato, clippy estricto, tests, `check-arch` y cargo deny pasan con el toolchain fijado. Ningún crate tiene código todavía. Specs de arquitectura de `engine_core` y `engine_sim` aprobadas el 26 de octubre de 2026 y plan P01 de `engine_core` en borrador (`specs/plans/01-engine-core.md`). El hito 0 está descrito en el GDD; el estado detallado, en la sección "Estado" de `CLAUDE.md`.
