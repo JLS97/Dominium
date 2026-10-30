@@ -154,7 +154,7 @@ Diez tareas en serie, según el "Reparto previsto en tareas" de la spec. Ninguna
 - **Paralelizable:** no, porque toca `engine_core`
 - **Revisores:** revisor-constitucion, cazador-determinismo
 - **Fuera de alcance:** cambiar una firma del contrato A; `hash`, `rng`, `data`, `save`, `profile`; los benchmarks
-- **Estado:** pendiente
+- **Estado:** integrada (2026-10-30)
 
 ### P01-T03 · Contrato B1: firmas de `hash`, `rng` y `data`
 
