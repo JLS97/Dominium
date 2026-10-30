@@ -141,7 +141,7 @@ Diez tareas en serie, según el "Reparto previsto en tareas" de la spec. Ninguna
 - **Paralelizable:** no, porque toca `engine_core` y el `Cargo.toml` raíz
 - **Revisores:** revisor-constitucion, cazador-determinismo
 - **Fuera de alcance:** cualquier cuerpo que no sea `todo!()`; los módulos `hash`, `rng`, `data`, `save` y `profile` (contratos B1 y B2); los tests; el contenido de los benchmarks más allá de `fn main() {}`
-- **Estado:** pendiente
+- **Estado:** integrada (2026-10-30)
 
 ### P01-T02 · `time`, `handle`, `version`, `collections` y `math`
 
