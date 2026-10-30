@@ -8,7 +8,8 @@ Cuando el autor responde, la sesión principal lleva la respuesta a la spec, al 
 
 ## Pendientes
 
-Ninguna por ahora.
+- [ ] **Q-012** · 2026-10-30 · `specs/plans/01-engine-core.md` (P01-T01; afecta a P01-T04 y P01-T09) · ¿Cómo se resuelve que la feature `tracy` no compile en la máquina de referencia? Contexto: `tracy-client` 0.19.0 arrastra `tracy-client-sys` 0.30.1, cuyo C++ de Tracy usa la constante `RelationProcessorDie` (`TracyProfiler.cpp:4185`), que el Windows SDK 10.0.19041 instalado junto a MSVC 14.33 no declara (`error C2065`). Las cinco comprobaciones comunes y `cargo deny check` pasan porque la feature está apagada por defecto, pero la puerta adicional del crate (`cargo clippy` y `cargo test -p engine_core --features tracy`) falla, y la ejecutan P01-T04 (`profile`) y P01-T09 (cierre). El plan ya lo preveía como riesgo y lo deja en manos del autor. La CI corre en `windows-latest`, cuyo SDK es probablemente más reciente, así que allí podría compilar. Lo señaló `implementador` en P01-T01. Opciones: (a) actualizar el Windows SDK o las Build Tools de Visual Studio 2022 en la máquina de referencia, sin tocar código ni spec; (b) fijar en una tarea de contrato una versión anterior de `tracy-client` que compile con el SDK actual, con revisión de licencias y cambio en la spec y en el ADR-0009 si procede; (c) dejar la feature sin compilar hasta el hito 2 y sacar sus líneas de la puerta adicional, lo que cambia CA-17 y CA-21.
+  Respuesta:
 
 ## Respondidas
 
