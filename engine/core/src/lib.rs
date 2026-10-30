@@ -8,7 +8,10 @@
 #![deny(missing_docs)]
 
 pub mod collections;
+pub mod data;
 pub mod handle;
+pub mod hash;
 pub mod math;
+pub mod rng;
 pub mod time;
 pub mod version;
