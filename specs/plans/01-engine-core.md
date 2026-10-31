@@ -233,7 +233,7 @@ Doce tareas en serie: las diez del "Reparto previsto en tareas" de la spec más 
 - **Paralelizable:** no, porque toca `engine_core`
 - **Revisores:** revisor-constitucion, cazador-determinismo
 - **Fuera de alcance:** el cuerpo del guardado y del replay y sus migraciones (`engine_sim`, `game_rules`); el benchmark `sobre.rs`
-- **Estado:** pendiente
+- **Estado:** integrada (2026-10-31)
 
 ### P01-T09 · Cierre: `profile`, benchmarks y criterios transversales
 
