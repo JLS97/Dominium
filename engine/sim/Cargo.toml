@@ -8,4 +8,38 @@ description = "Simulación determinista: tablas SoA, grid espacial, navegación,
 [lints]
 workspace = true
 
+[features]
+# Perfilado con Tracy: `Simulation::step` abre la zona `tick` y las fases las
+# suyas. Apagada por defecto; la activan las builds de medición del autor y la
+# puerta adicional del crate.
+tracy = ["engine_core/tracy"]
+
 [dependencies]
+engine_core.workspace = true
+rayon.workspace = true
+serde.workspace = true
+thiserror.workspace = true
+
+[dev-dependencies]
+proptest.workspace = true
+criterion.workspace = true
+allocation-counter.workspace = true
+# Solo para comprobar la codificación de tablas, replays y guardados en los
+# tests de formato.
+postcard.workspace = true
+
+[[bench]]
+name = "tick_sintetico"
+harness = false
+
+[[bench]]
+name = "tabla"
+harness = false
+
+[[bench]]
+name = "grid"
+harness = false
+
+[[bench]]
+name = "guardado"
+harness = false
