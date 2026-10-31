@@ -36,6 +36,42 @@ unused-allowed-license = "allow"
 multiple-versions = "warn"
 wildcards = "deny"
 highlight = "all"
+# Q-014 (CA-24 de specs/architecture/engine_core.md): las features de `glam` y
+# `rustc-hash` quedan fijadas con `exact = true` a las que el workspace activa
+# hoy, confirmadas con `cargo tree -p engine_core -e features` el 31 de octubre
+# de 2026. Cargo unifica features: si otro crate declarase `glam` con
+# `scalar-math` o `libm`, o `rustc-hash` con `rand`, cambiaría los resultados
+# en flotante o metería tipos con estado aleatorio en el único `glam` o
+# `rustc-hash` del grafo, y la simulación dejaría de ser determinista sin que
+# `clippy.toml` ni `check-arch` lo vieran. Una feature nueva de estos dos
+# crates entra solo por una tarea de contrato que cambie esta lista y la spec
+# de quien la pida. Las listas son el conjunto resuelto completo, con las
+# features implícitas que `default` arrastra, porque es lo que compara
+# cargo-deny.
+features = [
+    { crate = "glam", exact = true, allow = [
+        "all-types",
+        "bytemuck",
+        "default",
+        "f64",
+        "float-types",
+        "i16",
+        "i32",
+        "i64",
+        "i8",
+        "integer-types",
+        "isize",
+        "serde",
+        "size-types",
+        "std",
+        "u16",
+        "u32",
+        "u64",
+        "u8",
+        "usize",
+    ] },
+    { crate = "rustc-hash", exact = true, allow = ["default", "std"] },
+]
 
 [sources]
 unknown-registry = "deny"
