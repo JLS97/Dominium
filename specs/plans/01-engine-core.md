@@ -259,7 +259,7 @@ Doce tareas en serie: las diez del "Reparto previsto en tareas" de la spec más 
 - **Paralelizable:** sí, en principio, porque no toca `engine_core`; no se aprovecha, porque el hito 0 es secuencial y la tarea es corta
 - **Revisores:** revisor-constitucion
 - **Fuera de alcance:** cualquier comprobación nueva que no esté en CA-23 o CA-24; cambiar las comprobaciones existentes de las reglas 1, 2, 3 y 16 más allá de moverlas a funciones puras
-- **Estado:** pendiente
+- **Estado:** integrada (2026-10-31)
 
 ### P01-T11 · Veto de `Vec3A`, `Mat3A` y `Affine3A` en los tres `clippy.toml`
 
