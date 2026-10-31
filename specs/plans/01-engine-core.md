@@ -220,7 +220,7 @@ Doce tareas en serie: las diez del "Reparto previsto en tareas" de la spec más 
 - **Paralelizable:** no, porque toca `engine_core`
 - **Revisores:** revisor-constitucion, cazador-determinismo
 - **Fuera de alcance:** qué archivos RON existen y sus structs (spec de la simulación sintética); seguir enlaces simbólicos; hot-reload
-- **Estado:** pendiente
+- **Estado:** integrada (2026-10-31)
 
 ### P01-T08 · `save`
 
