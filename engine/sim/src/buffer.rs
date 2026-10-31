@@ -13,18 +13,22 @@
 use core::ops::{Index, IndexMut};
 
 use engine_core::hash::{HashState, StateHasher};
-use serde::{Deserialize, Serialize};
+use serde::{Deserialize, Deserializer, Serialize};
 
-/// Vector de capacidad fija. Reserva una vez y nunca crece: `push` con `len() == capacity()` hace pánico `columna llena`.
-/// Es la única forma de buffer en el camino caliente (regla 19). Se serializa como una secuencia, igual que un `Vec`;
-/// al deserializar, la capacidad queda igual a la longitud hasta que alguien llame a `reserve`.
-#[derive(Debug, PartialEq, Eq, Serialize, Deserialize)]
+/// Vector de capacidad fija. Reserva una vez y nunca crece: `push` con `len() >= capacity()` hace pánico `columna llena`.
+/// Es la única forma de buffer en el camino caliente (regla 19). Se serializa como una secuencia, igual que un `Vec`
+/// (`#[serde(transparent)]` sobre los elementos); al deserializar, la capacidad queda igual a la longitud hasta que
+/// alguien llame a `reserve`. La igualdad compara solo los elementos: la capacidad no es canónica y no entra en `==`,
+/// en `serde` ni en `HashState` (fijado en P02-T01).
+#[derive(Debug, Serialize)]
 #[serde(transparent)]
 pub struct FixedVec<T> {
     /// Los elementos, en orden. Solo este campo entra en `serde`: la secuencia.
     items: Vec<T>,
-    /// Capacidad congelada en `with_capacity` o `reserve`. No se serializa: el derivado la deja a 0 y P02-T02
-    /// la iguala a la longitud al deserializar, como fija la spec.
+    /// Capacidad congelada en `with_capacity` o `reserve`. No es canónica: no entra en `serde`, en `==` ni en
+    /// `HashState`.
+    // Solo la escribe `Deserialize`; nadie la lee hasta que P02-T02 implemente `capacity()`, que retira esta línea.
+    #[expect(dead_code, reason = "`capacity()` pendiente de P02-T02")]
     #[serde(skip)]
     capacity: usize,
 }
@@ -33,6 +37,26 @@ pub struct FixedVec<T> {
 impl<T: Clone> Clone for FixedVec<T> {
     fn clone(&self) -> FixedVec<T> {
         todo!("P02-T02")
+    }
+}
+
+/// Implementación propia: compara solo los elementos, sin la capacidad.
+impl<T: PartialEq> PartialEq for FixedVec<T> {
+    fn eq(&self, other: &FixedVec<T>) -> bool {
+        // Se comparan los campos directamente y no `as_slice()`, cuyo cuerpo queda para P02-T02.
+        self.items == other.items
+    }
+}
+
+impl<T: Eq> Eq for FixedVec<T> {}
+
+/// Implementación propia: deserializa la secuencia (la misma que escribe `Serialize`) y deja `capacity() == len()`,
+/// nunca 0 (regla 19: un buffer deserializado no puede crecer en silencio al primer `push`).
+impl<'de, T: Deserialize<'de>> Deserialize<'de> for FixedVec<T> {
+    fn deserialize<D: Deserializer<'de>>(deserializer: D) -> Result<FixedVec<T>, D::Error> {
+        let items = Vec::<T>::deserialize(deserializer)?;
+        let capacity = items.len();
+        Ok(FixedVec { items, capacity })
     }
 }
 
