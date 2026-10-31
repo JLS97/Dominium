@@ -24,6 +24,8 @@ Cuando el autor responde, la sesión principal lleva la respuesta a la spec, al 
   Respuesta:
 - [ ] **Q-019** · 2026-10-30 · `specs/architecture/engine_core.md` (`rng`) · ¿`Purpose` conserva la derivación `Default`? Contexto: `Purpose::default()` es el id 0 con índice 0, que colisiona con un propósito legítimo y permite obtenerlo por omisión. Además, la doc de `nth(index)` no dice que `index` sale de la posición en el bucle del tick y nunca de un contador guardado en la entidad, que sería estado no canónico (regla 6). Lo señaló `cazador-determinismo` al verificar P01-T03. Opciones: (a) quitar `Default` (cambio de contrato, cabe en la misma tarea que Q-018 si la hay) y añadir la frase a la doc de `nth`; (b) conservar `Default`, reservar el id 0 como "sin propósito" en la spec de quien defina los ids, y añadir solo la frase a la doc.
   Respuesta:
+- [ ] **Q-020** · 2026-10-31 · `specs/architecture/engine_core.md` (`save`, `SaveError::UnexpectedKind`) · ¿El mensaje de `UnexpectedKind` usa el `Debug` de `Kind` (`Save`/`Replay`) o un texto en español ("guardado"/"replay")? Contexto: la spec fija `SaveError` con `thiserror` y mensajes en español, pero `Kind` no deriva `Display`, así que el contrato B2 de P01-T04 escribe "tipo de archivo inesperado: se esperaba {expected:?} y se encontró {found:?}" con los nombres de las variantes. Un texto en español exigiría añadir `impl Display for Kind` al contrato en una tarea posterior. Lo señaló `implementador` en P01-T04. Opciones: (a) aceptar `Debug`, sin cambios; (b) añadir `Display` a `Kind` en la spec y en una tarea de contrato antes de P01-T08.
+  Respuesta:
 
 ## Respondidas
 
