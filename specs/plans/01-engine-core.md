@@ -194,7 +194,7 @@ Doce tareas en serie: las diez del "Reparto previsto en tareas" de la spec más 
 - **Paralelizable:** no, porque toca `engine_core`
 - **Revisores:** revisor-constitucion, cazador-determinismo
 - **Fuera de alcance:** el resto de `data` (`list_data_files`, `hash_data_tree`, `parse_ron`, `load_ron`); `rng`; el benchmark `hash_estado.rs`. Si el diff pasa de 400 líneas, se parte según el riesgo anotado: `StateHasher` con primitivos primero, implementaciones compuestas, vectores de `glam` y `write_handles` después, y la segunda mitad pasa a ser P01-T05b con el mismo archivo de tests
-- **Estado:** pendiente
+- **Estado:** integrada (2026-10-31)
 
 ### P01-T06 · `rng`
 
