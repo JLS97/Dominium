@@ -69,12 +69,20 @@ Los pánicos citados son comprobaciones explícitas con mensaje fijo, iguales en
 use core::ops::{Index, IndexMut};
 use serde::{Deserialize, Serialize};
 
-/// Vector de capacidad fija. Reserva una vez y nunca crece: `push` con `len() == capacity()` hace pánico `columna llena`.
-/// Es la única forma de buffer en el camino caliente (regla 19). Se serializa como una secuencia, igual que un `Vec`;
-/// al deserializar, la capacidad queda igual a la longitud hasta que alguien llame a `reserve`.
-#[derive(Debug, PartialEq, Eq, Serialize, Deserialize)]
+/// Vector de capacidad fija. Reserva una vez y nunca crece: `push` con `len() >= capacity()` hace pánico `columna llena`.
+/// Es la única forma de buffer en el camino caliente (regla 19). Se serializa como una secuencia, igual que un `Vec`
+/// (`#[serde(transparent)]` sobre los elementos); al deserializar, la capacidad queda igual a la longitud hasta que
+/// alguien llame a `reserve`. La igualdad compara solo los elementos: la capacidad no es canónica y no entra en `==`,
+/// en `serde` ni en `HashState` (fijado en P02-T01).
+#[derive(Debug, Serialize)]
 pub struct FixedVec<T> { /* privado */ }
 impl<T: Clone> Clone for FixedVec<T> {}   // conserva la capacidad
+/// Implementaciones propias: comparan `as_slice()`, sin la capacidad.
+impl<T: PartialEq> PartialEq for FixedVec<T> {}
+impl<T: Eq> Eq for FixedVec<T> {}
+/// Implementación propia: deserializa la secuencia y deja `capacity() == len()`, nunca 0 (regla 19: un buffer
+/// deserializado no puede crecer en silencio al primer `push`).
+impl<'de, T: Deserialize<'de>> Deserialize<'de> for FixedVec<T> {}
 
 impl<T> FixedVec<T> {
     #[must_use]
@@ -249,7 +257,7 @@ impl<C: Columns> Table<C> {
 impl<C: Columns + HashState> HashState for Table<C> {}
 ```
 
-Secuencia de bytes de `Table<C>` en el hash de estado, en este orden: `len` y `active_len` como `u64`; `handles()` como `[Handle]`; el directorio como dos slices de `capacity` entradas, fila por slot (`u32`, `u32::MAX` si libre) y generación por slot (`u32`); la pila de slots libres (`[u32]`, del fondo a la cima); los borrados pendientes (`[Handle]`); y después `C::hash_state`. La capacidad entra de forma indirecta, por la longitud del directorio y de la pila: dos tablas con el mismo contenido y distinta capacidad dan hashes distintos. El scratch de permutación y la bandera de pendiente por slot no entran.
+Secuencia de bytes de `Table<C>` en el hash de estado, en este orden: `len` y `active_len` como `u64`; `handles()` como `[Handle]`; el directorio como dos slices de `capacity` entradas, fila por slot (`u32`, `u32::MAX` si libre) y generación por slot (`u32`); la pila de slots libres (`[u32]`, del fondo a la cima); los borrados pendientes (`[Handle]`); y después `C::hash_state`. Cada slice entra como `[T]` de `engine_core::hash`: su longitud como `u64` y después los elementos por la vía en bloque de `T` (fijado en P02-T01). La capacidad entra de forma indirecta, por la longitud del directorio y de la pila: dos tablas con el mismo contenido y distinta capacidad dan hashes distintos. El scratch de permutación y la bandera de pendiente por slot no entran.
 
 ### `engine_sim::parallel`
 
