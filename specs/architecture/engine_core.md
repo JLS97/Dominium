@@ -397,23 +397,33 @@ pub struct Expected {
     pub data_hash: DataHash,
 }
 
-/// Mensajes en español. `PartialEq` para que los tests comparen errores enteros.
+/// Mensajes en español, fijados en P01-T04. `PartialEq` para que los tests comparen errores enteros.
+/// `UnexpectedKind` escribe los nombres de variante de `Kind` (`Save`, `Replay`) con `Debug`, mientras Q-020
+/// no diga otra cosa; `DataHashMismatch` usa el `Display` hexadecimal de `DataHash`.
 #[derive(Debug, PartialEq, Eq, thiserror::Error)]
 pub enum SaveError {
     /// Menos de 8 bytes, o los 8 primeros no son `MAGIC`.
+    #[error("el archivo no es un guardado ni un replay: faltan los 8 bytes iniciales `PLUSULTR`")]
     BadMagic,
     /// El byte de la posición 8 no es `ENVELOPE_VERSION`.
+    #[error("versión del sobre no admitida: se encontró la {found} y esta build lee la {}", ENVELOPE_VERSION)]
     UnsupportedEnvelope { found: u8 },
+    #[error("tipo de archivo inesperado: se esperaba {expected:?} y se encontró {found:?}")]
     UnexpectedKind { expected: Kind, found: Kind },
+    #[error("versión del formato del cuerpo no admitida: se esperaba la {expected} y se encontró la {found}")]
     UnsupportedFormat { expected: u32, found: u32 },
     /// Regla 18: los datos con los que se jugó no son los cargados.
+    #[error("los datos con los que se jugó ({found}) no son los cargados ({expected})")]
     DataHashMismatch { expected: DataHash, found: DataHash },
     /// Sobran `count` bytes después del cuerpo.
+    #[error("después del cuerpo sobran {count} bytes")]
     TrailingBytes { count: usize },
     /// Truncado o mal formado: un archivo de exactamente 8 bytes, una cabecera a medias, un `Kind` desconocido,
     /// un handle con generación 0 en el cuerpo; `String` con el detalle del codificador.
+    #[error("archivo truncado o mal formado: {0}")]
     Corrupt(String),
     /// El cuerpo no se pudo serializar; `String` con el detalle del codificador.
+    #[error("no se pudo serializar el cuerpo: {0}")]
     Encode(String),
 }
 
@@ -531,7 +541,8 @@ pub fn is_active() -> bool;
 pub fn frame_mark();
 /// Fin de un tick de simulación: frame secundario llamado `tick`.
 pub fn tick_mark();
-/// Nombre del hilo actual en el perfilador.
+/// Nombre del hilo actual en el perfilador. Con la feature asigna una vez por llamada (`CString` dentro de
+/// `tracy-client`); se llama una vez por hilo, nunca en el camino caliente.
 pub fn set_thread_name(name: &'static str);
 
 /// Zona de perfilado. Se cierra al soltarla. No es `Send` en ninguna configuración: se abre y se cierra en el mismo hilo.
@@ -539,7 +550,9 @@ pub fn set_thread_name(name: &'static str);
 #[must_use = "una zona que no se guarda en una variable se cierra en la misma línea"]
 pub struct Span { /* privado */ }
 
-/// `let _zona = engine_core::span!("fase_mover");`. El nombre es un literal: no asigna.
+/// `let _zona = engine_core::span!("fase_mover");`. El nombre es un literal: sin la feature no asigna nunca; con
+/// ella, `span_location!` de `tracy-client` crea un `static` por punto de uso que asigna una sola vez, en la primera
+/// llamada (decisión de P01-T04).
 #[macro_export]
 macro_rules! span { ($name:literal) => { /* ... */ }; }
 /// `engine_core::plot!("unidades_vivas", valor_f64)`. El nombre es un literal: no asigna.
