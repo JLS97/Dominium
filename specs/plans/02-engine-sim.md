@@ -3,7 +3,7 @@
 - **Spec:** `specs/architecture/engine_sim.md` (aprobada el 26 de octubre de 2026)
 - **Hito:** 0
 - **Rama de integración:** main
-- **Estado:** borrador
+- **Estado:** aprobado
 
 ## Enfoque
 
@@ -129,10 +129,151 @@ El modo ligero no aplica a ninguna tarea: todas crean o cambian contratos o toca
 
 ## Tareas
 
-Pendientes de `/tareas`.
+Diez tareas en serie, según el "Reparto previsto en tareas" de la spec. Ninguna es `ligera`: todas crean o cambian contratos o tocan código de simulación con determinismo en juego. Worktree `.worktrees/p02-tNN`, rama `tarea/p02-tNN-<slug>`. La puerta adicional de `engine_sim` (sección "Verificación") corre en todas; sus dos líneas con `--features tracy` esperan a Q-012 y a P01-T09. Las convenciones de contrato son las de P01: cuerpos `todo!("P02-TNN")`, `panic!("P02-TNN: pendiente de implementar")` en `const fn`, `#![expect(unused_variables, reason = ...)]` de módulo que la tarea que implementa retira, y nunca `allow`.
+
+### P02-T01 · Contrato A: dependencias, `Cargo.toml` y firmas de `buffer`, `table`, `parallel`, `events`, `orders` y `grid`
+
+- **Tipo:** contrato
+- **Crate:** `engine_sim`, más `[workspace.dependencies]` del `Cargo.toml` raíz
+- **Depende de:** P01-T08 (integrada); no necesita P01-T09
+- **Contrato que define:** en el `Cargo.toml` raíz, `rayon = "1.12"` y `engine_core = { path = "engine/core", version = "0.1.0" }`; en `engine/sim/Cargo.toml`, las cuatro dependencias normales con `workspace = true`, la feature `tracy = ["engine_core/tracy"]`, las cuatro dependencias de desarrollo y los cuatro `[[bench]]` con `harness = false` (`tick_sintetico`, `tabla`, `grid`, `guardado`) con sus archivos de `fn main() {}`; `src/lib.rs` con `#![deny(missing_docs)]` y los once módulos declarados (los cinco del contrato B como archivos con solo su doc de módulo); y las firmas, derivaciones y docs literales de la spec para `buffer`, `table`, `parallel`, `events`, `orders` y `grid`, con `CHUNK`, `MAX_CELLS` y los `#[error]` con su valor real
+- **Criterios que cubre:** ninguno directamente. Deja preparado CA-21 (atributos de `lib.rs`, dependencias directas exactas). Se verifica con la puerta completa en verde, `cargo test -p engine_sim --no-run`, `cargo tree -p engine_sim -e normal --depth 1` igual a `engine_core`, `rayon`, `serde`, `thiserror`, y `revisor-constitucion` sobre las firmas
+- **Tests de aceptación:** ninguno, porque es contrato
+- **Paralelizable:** no: es contrato y toca el `Cargo.toml` raíz
+- **Revisores:** revisor-constitucion, cazador-determinismo
+- **Fuera de alcance:** cualquier cuerpo que no sea `todo!()`, salvo constantes y derivaciones; las firmas de `world`, `sim`, `replay`, `save` y `desync` (contrato B); contenido de los benchmarks; `specs/`
+- **Estado:** pendiente
+
+### P02-T02 · `buffer`, `Column`, `Columns` y `Table` hasta `apply_removals`
+
+- **Tipo:** implementación
+- **Crate:** `engine_sim`
+- **Depende de:** P02-T01
+- **Contrato que usa:** `buffer` y `table` de P02-T01; `Handle` y `next_generation` de `engine_core`
+- **Criterios que cubre:** CA-1, CA-2, CA-22
+- **Tests de aceptación:** `engine/sim/tests/aceptacion_sim_t02.rs`, con columnas de prueba definidas en el propio archivo y `postcard` para los bytes de `FixedVec`
+- **Paralelizable:** no, porque toca `engine_sim`
+- **Revisores:** revisor-constitucion, cazador-determinismo
+- **Fuera de alcance:** `set_active`, `permute_active`, `HashState` y `serde` de `Table`, que siguen en `todo!("P02-T03")`; el resto de módulos. Si el diff pasa de 400 líneas, se parte: `buffer`, `Column` y `Columns` por un lado y `Table` por otro, con el mismo archivo de tests, y la segunda mitad pasa a ser P02-T02b
+- **Estado:** pendiente
+
+### P02-T03 · `set_active`, `permute_active`, `HashState` y `serde` de `table`
+
+- **Tipo:** implementación
+- **Crate:** `engine_sim`
+- **Depende de:** P02-T02
+- **Contrato que usa:** `table` de P02-T01 y lo implementado en P02-T02; `StateHasher` y `HashState` de `engine_core`
+- **Criterios que cubre:** CA-3, CA-4, CA-5, CA-6
+- **Tests de aceptación:** `engine/sim/tests/aceptacion_sim_t03.rs`, con `proptest` de semilla fija para CA-3 y `postcard` para los 20 bytes fijados y las siete corrupciones de CA-6
+- **Paralelizable:** no, porque toca `engine_sim`
+- **Revisores:** revisor-constitucion, cazador-determinismo
+- **Fuera de alcance:** el resto de módulos; cualquier cambio de firma. La deserialización propia valida todos los invariantes de "Datos y formatos" antes de indexar
+- **Estado:** pendiente
+
+### P02-T04 · `parallel` y `events`
+
+- **Tipo:** implementación
+- **Crate:** `engine_sim`
+- **Depende de:** P02-T03
+- **Contrato que usa:** `parallel` y `events` de P02-T01; `FixedVec` de P02-T02
+- **Criterios que cubre:** CA-7, CA-8, CA-9
+- **Tests de aceptación:** `engine/sim/tests/aceptacion_sim_t04.rs`, con pools de 1, 3, 6 y 12 hilos y `allocation-counter` para el `collect` tras calentamiento
+- **Paralelizable:** no, porque toca `engine_sim`
+- **Revisores:** revisor-constitucion, cazador-determinismo
+- **Fuera de alcance:** el resto de módulos; cualquier uso de `rayon` fuera de `parallel.rs`; reducciones paralelas
+- **Estado:** pendiente
+
+### P02-T05 · `orders` y `grid`
+
+- **Tipo:** implementación
+- **Crate:** `engine_sim`
+- **Depende de:** P02-T04
+- **Contrato que usa:** `orders` y `grid` de P02-T01; `FixedVec` de P02-T02; `par_scan` y `reduce_in_order` de P02-T04 para CA-17; `Tick` y `Vec2` de `engine_core`
+- **Criterios que cubre:** CA-10, CA-16, CA-17
+- **Tests de aceptación:** `engine/sim/tests/aceptacion_sim_t05.rs`, con posiciones de `xorshift64` y pools de 1 y 6 hilos para CA-17
+- **Paralelizable:** no, porque toca `engine_sim`
+- **Revisores:** revisor-constitucion, cazador-determinismo
+- **Fuera de alcance:** el resto de módulos; el grid de navegación (hito 2)
+- **Estado:** pendiente
+
+### P02-T06 · Contrato B: firmas de `world`, `sim`, `replay`, `save` y `desync`
+
+- **Tipo:** contrato
+- **Crate:** `engine_sim`
+- **Depende de:** P02-T05; no necesita P01-T09
+- **Contrato que define:** las firmas, derivaciones, docs y `#[error]` literales de la spec para `world`, `sim`, `replay`, `save` y `desync`, incluidos `REPLAY_FORMAT_VERSION`, `SAVE_FORMAT_VERSION`, `format_version` (con cuerpo real, porque es una `const fn` de una línea fijada por la spec) y `SimConfig::default()` con los valores de la API; cuerpos `todo!("P02-T07")` en `world`, `sim` y `desync`, `todo!("P02-T08")` en `save`, `save_body` y `load`, y `todo!("P02-T09")` en `replay`, `replay`, `prepare_replay` y `expect_checkpoints`
+- **Criterios que cubre:** ninguno directamente. Se verifica con la puerta completa en verde, `cargo test -p engine_sim --no-run` y `revisor-constitucion` sobre las firmas
+- **Tests de aceptación:** ninguno, porque es contrato
+- **Paralelizable:** no, porque es contrato
+- **Revisores:** revisor-constitucion, cazador-determinismo
+- **Fuera de alcance:** cualquier cuerpo que no sea `todo!()`, salvo `format_version`, las constantes, las derivaciones y `SimConfig::default()`; `Cargo.toml`; `specs/`
+- **Estado:** pendiente
+
+### P02-T07 · `world`, `sim` y `desync`, con el mundo de prueba
+
+- **Tipo:** implementación
+- **Crate:** `engine_sim`
+- **Depende de:** P02-T06 y **P01-T09** (`engine_core::profile`: el mundo de prueba abre zonas con `span!` y `Simulation::step` llama a `tick_mark`)
+- **Contrato que usa:** `world`, `sim` y `desync` de P02-T06; todo lo de P02-T02 a P02-T05; `rng`, `hash`, `profile` y `Tick` de `engine_core`
+- **Criterios que cubre:** CA-11, CA-12, CA-15
+- **Tests de aceptación:** `engine/sim/tests/aceptacion_sim_t07.rs` y el mundo de prueba en `engine/sim/tests/common/mod.rs` (`MundoPrueba`, `MundoV2`, `MundoVacio` y el mundo adrede no determinista de CA-15), que escribe `autor-tests` en esta tarea y reutilizan P02-T08, P02-T09 y P02-T10. `save_body`, `load`, `replay`, `prepare_replay` y `expect_checkpoints` siguen en `todo!`
+- **Paralelizable:** no, porque toca `engine_sim`
+- **Revisores:** revisor-constitucion, cazador-determinismo
+- **Fuera de alcance:** `save` y `replay` y sus cinco métodos de `Simulation`; benchmarks. Si el diff pasa de 400 líneas, se parte: `world` y `desync` primero, `sim` después, con el mismo archivo de tests
+- **Estado:** pendiente
+
+### P02-T08 · `save`, `save_body` y `load`
+
+- **Tipo:** implementación
+- **Crate:** `engine_sim`
+- **Depende de:** P02-T07
+- **Contrato que usa:** `save` de P02-T06 y `Simulation` de P02-T07; el sobre de `engine_core::save` y `GAME_VERSION`
+- **Criterios que cubre:** CA-13
+- **Tests de aceptación:** `engine/sim/tests/aceptacion_sim_t08.rs`, con el mundo de prueba de `tests/common/mod.rs` y pools de 3, 6 y 1 hilos
+- **Paralelizable:** no, porque toca `engine_sim`
+- **Revisores:** revisor-constitucion, cazador-determinismo
+- **Fuera de alcance:** `replay` y sus tres métodos; migraciones de guardados; el benchmark `guardado.rs`
+- **Estado:** pendiente
+
+### P02-T09 · `replay`, `replay`, `prepare_replay` y `expect_checkpoints`
+
+- **Tipo:** implementación
+- **Crate:** `engine_sim`
+- **Depende de:** P02-T08
+- **Contrato que usa:** `replay` de P02-T06 y `Simulation` de P02-T07 y P02-T08; el sobre de `engine_core::save`
+- **Criterios que cubre:** CA-14
+- **Tests de aceptación:** `engine/sim/tests/aceptacion_sim_t09.rs`, con el mundo de prueba, `Replay<(), u8>` para los bytes fijados y pools de 6 hilos para la reproducción
+- **Paralelizable:** no, porque toca `engine_sim`
+- **Revisores:** revisor-constitucion, cazador-determinismo
+- **Fuera de alcance:** replay desde un guardado; el visor de replays (hito 1); vaciado del registro por trozos (spec de hilos, hito 1)
+- **Estado:** pendiente
+
+### P02-T10 · Cierre: `tracy`, benchmarks y criterios transversales
+
+- **Tipo:** implementación
+- **Crate:** `engine_sim`
+- **Depende de:** P02-T09
+- **Contrato que usa:** todo el crate; `profile` de `engine_core` con la feature `tracy`
+- **Criterios que cubre:** CA-18, CA-19, CA-20, CA-21
+- **Tests de aceptación:** `engine/sim/tests/aceptacion_sim_t10.rs`; CA-18 se mide con un `Pool` de 1 hilo dentro de `pool.install`. CA-20 es métrica: los cuatro benchmarks corren con `cargo bench -p engine_sim`, sin umbral, e incluyen el mundo de prueba con `#[path = "../tests/common/mod.rs"]`. Los dos `cargo tree` de CA-21 los compara el orquestador con "Dependencias permitidas" en `/verificar`; el test de CA-19 lee los doce archivos de `src/` con `include_str!`
+- **Paralelizable:** no, porque toca `engine_sim`
+- **Revisores:** revisor-constitucion, cazador-determinismo
+- **Fuera de alcance:** umbrales de rendimiento (hito 2); lo que `rayon` asigne con más de un hilo
+- **Estado:** pendiente
 
 ## Oleadas
 
-Pendientes de `/tareas`.
+| Oleada | Tareas | Nota |
+| --- | --- | --- |
+| 1 | P02-T01 | contrato A, va solo; abre `rayon` y `engine_core` en el workspace |
+| 2 | P02-T02 | `buffer` y la tabla hasta el borrado diferido; puede partirse en dos |
+| 3 | P02-T03 | conjunto activo, permutación, hash y `serde` de la tabla |
+| 4 | P02-T04 | chunks y eventos; primera vez que corre `rayon` |
+| 5 | P02-T05 | órdenes y grid |
+| 6 | P02-T06 | contrato B, va solo |
+| 7 | P02-T07 | bucle de simulación y mundo de prueba; **necesita P01-T09 integrada** |
+| 8 | P02-T08 | guardado |
+| 9 | P02-T09 | replay |
+| 10 | P02-T10 | cierre; primera vez que corre entera la puerta adicional, con `--features tracy` y `cargo bench` |
 
-**Camino crítico:** pendiente de `/tareas`.
+**Camino crítico:** las diez tareas, en serie: P02-T01 → P02-T02 → P02-T03 → P02-T04 → P02-T05 → P02-T06 → P02-T07 → P02-T08 → P02-T09 → P02-T10, con P01-T09 como dependencia externa de P02-T07. Las oleadas 1 a 6 no necesitan P01-T09 y pueden avanzar mientras el autor actualiza el Windows SDK; si P01-T09 se integra antes de llegar a la oleada 7, la cadena no se detiene. Al integrarse P02-T10 termina el hito 0 por parte del motor, y queda la spec de la simulación sintética como escenario de los tests de la constitución.
