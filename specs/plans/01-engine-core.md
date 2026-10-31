@@ -94,12 +94,13 @@ Tests de aceptación en `engine/core/tests/aceptacion_core_tNN.rs`, uno por tare
 | CA-17 | tests `ca_17_perfilado_sin_feature_es_nulo` (`#[cfg(not(feature = "tracy"))]`) y `ca_17_perfilado_con_feature_no_hace_panico` (`cargo test -p engine_core --features tracy`) | P01-T09 |
 | CA-18 | test `ca_18_primitivas_sin_asignaciones` (`allocation-counter`) | P01-T09 |
 | CA-19 | métrica: `benches/hash_estado.rs`, `benches/sobre.rs`, `benches/rng.rs` corren con `cargo bench -p engine_core`; sin umbral hasta el hito 2 | P01-T09 |
-| CA-20 | test `ca_20_version_del_juego_igual_a_cargo` | P01-T02 |
+| CA-20 | tests `ca_20_version_del_juego_igual_a_cargo` (P01-T02) y `ca_20_sin_prerrelease` (P01-T09, Q-015) | P01-T02, P01-T09 |
 | CA-21 | test `ca_21_lib_rs_lleva_los_atributos` más la puerta adicional: `cargo doc` sin avisos y los dos `cargo tree` comparados con la lista de dependencias permitidas por el orquestador | P01-T09 |
-| CA-22 | test `ca_22_tres_clippy_toml_identicos` más la prueba negativa (línea con `std::collections::HashMap` dentro de una función, `cargo clippy` falla con `disallowed_types`), que hace y retira el orquestador en el worktree | P01-T02 |
+| CA-22 | test `ca_22_tres_clippy_toml_identicos` (tres rutas en P01-T02; seis desde P01-T11, Q-016) más las dos pruebas negativas (línea con `std::collections::HashMap` y línea con `glam::Vec3A` dentro de una función, `cargo clippy` falla con `disallowed_types`), que hace y retira el orquestador | P01-T02, P01-T11 |
 | CA-23 | tests en `xtask/tests/aceptacion_check_arch_t10.rs` con entradas construidas a mano, y la puerta (`cargo xtask check-arch` en cada integración); la prueba negativa (`rustc-hash.workspace = true` en `engine/sim/Cargo.toml`) la hace y retira el orquestador | P01-T10 |
+| CA-24 | la puerta (`cargo deny check`) más las dos pruebas negativas (`glam` con `scalar-math` y `rustc-hash` con `rand` en `engine/sim/Cargo.toml`, `cargo deny check` falla en `bans`), que hace y retira el orquestador | P01-T10 |
 
-Las tres tareas de contrato (P01-T01, P01-T03, P01-T04) no cubren criterios: se verifican con la puerta completa en verde, `cargo test -p engine_core --no-run` y la revisión de `revisor-constitucion` de que las firmas son las de la spec.
+Las cuatro tareas de contrato (P01-T01, P01-T03, P01-T04, P01-T12) no cubren criterios: se verifican con la puerta completa en verde, `cargo test -p engine_core --no-run` y la revisión de `revisor-constitucion` de que las firmas son las de la spec.
 
 **Puerta adicional de `engine_core`**, que `/verificar` ejecuta en toda tarea de este plan además de las cinco comprobaciones de `CLAUDE.md`:
 
@@ -128,7 +129,7 @@ Lo que espera a este plan: el plan de `engine_sim` no empieza hasta que estén i
 
 ## Tareas
 
-Diez tareas en serie, según el "Reparto previsto en tareas" de la spec. Ninguna es `ligera`: todas crean o cambian contratos o tocan `engine_core`, salvo la última, que cambia la comprobación de la constitución y pasa de las 100 líneas. Worktree `.worktrees/p01-tNN`, rama `tarea/p01-tNN-<slug>`. La puerta adicional de `engine_core` (sección "Verificación") corre en todas las tareas que tocan `engine/core`.
+Doce tareas en serie: las diez del "Reparto previsto en tareas" de la spec más dos añadidas el 31 de octubre de 2026 al responder Q-016 a Q-019: P01-T11, `ligera`, que veta `Vec3A`, `Mat3A` y `Affine3A` en los tres `clippy.toml`, y P01-T12, de contrato, que revisa las firmas de `rng`. Las demás crean o cambian contratos o tocan `engine_core`, salvo P01-T10, que cambia la comprobación de la constitución y pasa de las 100 líneas. Worktree `.worktrees/p01-tNN`, rama `tarea/p01-tNN-<slug>`. La puerta adicional de `engine_core` (sección "Verificación") corre en todas las tareas que tocan `engine/core`.
 
 ### P01-T01 · Contrato A: dependencias, `clippy.toml` y firmas de `time`, `handle`, `version`, `collections` y `math`
 
@@ -186,9 +187,9 @@ Diez tareas en serie, según el "Reparto previsto en tareas" de la spec. Ninguna
 
 - **Tipo:** implementación
 - **Crate:** `engine_core`
-- **Depende de:** P01-T04
+- **Depende de:** P01-T04, P01-T11
 - **Contrato que usa:** `hash` y `DataHash` de P01-T03; `Handle` y `math` de P01-T01
-- **Criterios que cubre:** CA-6, CA-7, CA-8
+- **Criterios que cubre:** CA-6, CA-7 (ampliado por Q-017: la vía en bloque se comprueba en todas las filas de la tabla con `hash_state_slice` propio, con un test genérico sobre `T: HashState + Pod`), CA-8
 - **Tests de aceptación:** `engine/core/tests/aceptacion_core_t05.rs`, con `xxhash-rust` como dependencia de desarrollo para la referencia de CA-8
 - **Paralelizable:** no, porque toca `engine_core`
 - **Revisores:** revisor-constitucion, cazador-determinismo
@@ -199,8 +200,8 @@ Diez tareas en serie, según el "Reparto previsto en tareas" de la spec. Ninguna
 
 - **Tipo:** implementación
 - **Crate:** `engine_core`
-- **Depende de:** P01-T05
-- **Contrato que usa:** `rng` de P01-T03; `Tick` y `Handle` de P01-T01
+- **Depende de:** P01-T12
+- **Contrato que usa:** `rng` de P01-T03 revisado en P01-T12 (sujeto `Option<Handle>`, `Purpose` sin `Default`); `Tick` y `Handle` de P01-T01
 - **Criterios que cubre:** CA-9, CA-10
 - **Tests de aceptación:** `engine/core/tests/aceptacion_core_t06.rs`. CA-9 se corre también con `--release`
 - **Paralelizable:** no, porque toca `engine_core`
@@ -239,9 +240,9 @@ Diez tareas en serie, según el "Reparto previsto en tareas" de la spec. Ninguna
 - **Tipo:** implementación
 - **Crate:** `engine_core`
 - **Depende de:** P01-T08
-- **Contrato que usa:** `profile` de P01-T04 y todos los módulos anteriores
-- **Criterios que cubre:** CA-17, CA-18, CA-19, CA-21
-- **Tests de aceptación:** `engine/core/tests/aceptacion_core_t09.rs`; `ca_17_perfilado_con_feature_no_hace_panico` se corre con `cargo test -p engine_core --features tracy`. CA-19 es métrica: los tres benchmarks corren con `cargo bench -p engine_core`, sin umbral. Los dos `cargo tree` de CA-21 los compara el orquestador con "Dependencias permitidas" en `/verificar`
+- **Contrato que usa:** `profile` de P01-T04 y todos los módulos anteriores. Con la feature, `plot!` cachea en un `static` por punto de uso un `PlotName::new_leak`, sin usar `plot_name!` de `tracy-client` (Q-021); `version.rs` añade la aserción en compilación de que `CARGO_PKG_VERSION_PRE` está vacío (Q-015)
+- **Criterios que cubre:** CA-17, CA-18, CA-19, CA-20 (solo `ca_20_sin_prerrelease`), CA-21
+- **Tests de aceptación:** `engine/core/tests/aceptacion_core_t09.rs`; `ca_17_perfilado_con_feature_no_hace_panico` se corre con `cargo test -p engine_core --features tracy`, que exige el Windows SDK actualizado en la máquina del autor (Q-012). CA-19 es métrica: los tres benchmarks corren con `cargo bench -p engine_core`, sin umbral. Los dos `cargo tree` de CA-21 los compara el orquestador con "Dependencias permitidas" en `/verificar`
 - **Paralelizable:** no, porque toca `engine_core`
 - **Revisores:** revisor-constitucion, cazador-determinismo
 - **Fuera de alcance:** umbrales de rendimiento (hito 2); una vía en bloque para `Option<Handle>`
@@ -250,14 +251,40 @@ Diez tareas en serie, según el "Reparto previsto en tareas" de la spec. Ninguna
 ### P01-T10 · Extensión de `check-arch` en `xtask`
 
 - **Tipo:** implementación
-- **Crate:** `xtask`. El encargo autoriza expresamente tocar `xtask/`
+- **Crate:** `xtask` y `deny.toml`. El encargo autoriza expresamente tocar `xtask/` y `deny.toml`
 - **Depende de:** P01-T01, porque vigila las dependencias que ese contrato declara. Va la última para comprobar el workspace tal como queda
-- **Contrato que usa:** ninguno de `engine_core`; define `xtask` como biblioteca con `direct_dependency_violations` y `cargo_config_violations`
-- **Criterios que cubre:** CA-23
-- **Tests de aceptación:** `xtask/tests/aceptacion_check_arch_t10.rs`, con entradas construidas a mano. La prueba negativa (`rustc-hash.workspace = true` en `engine/sim/Cargo.toml`) la hace y retira el orquestador en el worktree
+- **Contrato que usa:** ninguno de `engine_core`; define `xtask` como biblioteca con `direct_dependency_violations`, `cargo_config_violations` y `allow_disallowed_types_violations` (Q-014)
+- **Criterios que cubre:** CA-23, CA-24
+- **Tests de aceptación:** `xtask/tests/aceptacion_check_arch_t10.rs`, con entradas construidas a mano. Las pruebas negativas (`rustc-hash.workspace = true`, `glam` con `scalar-math` y `rustc-hash` con `rand` en `engine/sim/Cargo.toml`) las hace y retira el orquestador en el worktree
 - **Paralelizable:** sí, en principio, porque no toca `engine_core`; no se aprovecha, porque el hito 0 es secuencial y la tarea es corta
 - **Revisores:** revisor-constitucion
-- **Fuera de alcance:** cualquier comprobación nueva que no esté en CA-23; cambiar las comprobaciones existentes de las reglas 1, 2, 3 y 16 más allá de moverlas a funciones puras
+- **Fuera de alcance:** cualquier comprobación nueva que no esté en CA-23 o CA-24; cambiar las comprobaciones existentes de las reglas 1, 2, 3 y 16 más allá de moverlas a funciones puras
+- **Estado:** pendiente
+
+### P01-T11 · Veto de `Vec3A`, `Mat3A` y `Affine3A` en los tres `clippy.toml`
+
+- **Tipo:** ligera
+- **Crate:** ninguno: `engine/core/clippy.toml`, `engine/sim/clippy.toml`, `game/rules/clippy.toml` y el test `ca_22_tres_clippy_toml_identicos` de `engine/core/tests/aceptacion_core_t02.rs`, que pasa a exigir seis rutas
+- **Depende de:** P01-T04
+- **Contrato que usa:** ninguno
+- **Criterios que cubre:** CA-22 (ampliado por Q-016)
+- **Tests de aceptación:** el de P01-T02, actualizado en esta misma tarea; es la excepción prevista en el modo ligero, donde no hay `autor-tests`. Las dos pruebas negativas de CA-22 las hace y retira el orquestador en el checkout principal antes del commit
+- **Paralelizable:** no: la hace la sesión principal sobre la rama de integración
+- **Revisores:** revisor-constitucion, en modo ligero
+- **Fuera de alcance:** cualquier `.rs` que no sea el test; cualquier otra ruta vetada
+- **Estado:** pendiente
+
+### P01-T12 · Contrato B1 revisado: sujeto de `rng` y `Purpose` sin `Default`
+
+- **Tipo:** contrato
+- **Crate:** `engine_core`
+- **Depende de:** P01-T05
+- **Contrato que usa:** `rng` de P01-T03 y `Handle` de P01-T01; cambia `random_u64` y `draw` a `subject: Option<Handle>`, quita `Default` de `Purpose` y añade a la doc de `nth` de dónde sale el índice (Q-018, Q-019). Los cuerpos siguen en `todo!("P01-T06")`
+- **Criterios que cubre:** ninguno directamente. Se verifica con la puerta completa en verde, `cargo test -p engine_core --no-run` y `revisor-constitucion` sobre las firmas
+- **Tests de aceptación:** ninguno, porque es contrato
+- **Paralelizable:** no, porque toca `engine_core`
+- **Revisores:** revisor-constitucion, cazador-determinismo
+- **Fuera de alcance:** cualquier cuerpo; cualquier otro módulo
 - **Estado:** pendiente
 
 ## Oleadas
@@ -268,11 +295,13 @@ Diez tareas en serie, según el "Reparto previsto en tareas" de la spec. Ninguna
 | 2 | P01-T02 | primera implementación; valida el contrato A antes de seguir |
 | 3 | P01-T03 | contrato B1, va solo |
 | 4 | P01-T04 | contrato B2, va solo; prueba que `tracy-client` compila |
-| 5 | P01-T05 | `hash`; puede partirse en dos si pasa de 400 líneas |
-| 6 | P01-T06 | `rng` |
-| 7 | P01-T07 | `data` |
-| 8 | P01-T08 | `save`; al integrarse, puede empezar `/planificar` de `engine_sim` |
-| 9 | P01-T09 | cierre; primera vez que corre entera la puerta adicional, con `--features tracy` y `cargo bench` |
-| 10 | P01-T10 | `check-arch`; comprueba el workspace final |
+| 5 | P01-T11 | ligera: los tres `clippy.toml`, antes de que `hash` escriba código con `glam` |
+| 6 | P01-T05 | `hash`; puede partirse en dos si pasa de 400 líneas |
+| 7 | P01-T12 | contrato B1 revisado, va solo |
+| 8 | P01-T06 | `rng` |
+| 9 | P01-T07 | `data` |
+| 10 | P01-T08 | `save`; al integrarse, puede empezar `/planificar` de `engine_sim` |
+| 11 | P01-T09 | cierre; primera vez que corre entera la puerta adicional, con `--features tracy` y `cargo bench` |
+| 12 | P01-T10 | `check-arch` y `deny.toml`; comprueba el workspace final |
 
-**Camino crítico:** las diez tareas, en serie: P01-T01 → P01-T02 → P01-T03 → P01-T04 → P01-T05 → P01-T06 → P01-T07 → P01-T08 → P01-T09 → P01-T10. P01-T10 podría salir de la cadena, pero no acorta nada mientras solo haya una implementación a la vez. El plan de `engine_sim` se desbloquea al integrarse P01-T08.
+**Camino crítico:** las doce tareas, en serie: P01-T01 → P01-T02 → P01-T03 → P01-T04 → P01-T11 → P01-T05 → P01-T12 → P01-T06 → P01-T07 → P01-T08 → P01-T09 → P01-T10. P01-T10 podría salir de la cadena, pero no acorta nada mientras solo haya una implementación a la vez. El plan de `engine_sim` se desbloquea al integrarse P01-T08.

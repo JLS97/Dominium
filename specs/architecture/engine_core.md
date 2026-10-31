@@ -165,7 +165,7 @@ impl Handle {
     pub const fn next_generation(generation: NonZeroU32) -> NonZeroU32;
 }
 
-/// `handle.to_raw()`, o 0 si no hay handle. Para el sujeto de `rng::random_u64` cuando la extracción no es de una entidad.
+/// `handle.to_raw()`, o 0 si no hay handle. Es lo que `rng::random_u64` hashea como sujeto, reciba `Some` o `None`.
 #[must_use]
 pub const fn raw_or_zero(handle: Option<Handle>) -> u64;
 ```
@@ -290,6 +290,7 @@ No se implementa para `usize` ni `isize`, porque su anchura depende de la plataf
 
 ```rust
 use serde::{Deserialize, Serialize};
+use crate::handle::Handle;
 use crate::time::Tick;
 
 /// Semilla de la partida. Es canónica: va en el guardado y en el replay.
@@ -298,8 +299,9 @@ use crate::time::Tick;
 pub struct Seed(pub u64);
 
 /// Para qué se extrae aleatoriedad: un id de 32 bits que fija quien la usa, y un índice para la n-ésima extracción
-/// del mismo propósito en el mismo tick y sujeto (Q-009). La aleatoriedad no tiene estado canónico.
-#[derive(Clone, Copy, Debug, Default, PartialEq, Eq, Hash)]
+/// del mismo propósito en el mismo tick y sujeto (Q-009). La aleatoriedad no tiene estado canónico. Sin `Default`:
+/// el propósito se declara siempre con `new`, para que el id 0 no se obtenga por omisión (Q-019).
+#[derive(Clone, Copy, Debug, PartialEq, Eq, Hash)]
 #[repr(transparent)]
 pub struct Purpose(pub u64);
 
@@ -307,7 +309,9 @@ impl Purpose {
     /// `(id << 32)`, índice 0.
     #[must_use]
     pub const fn new(id: u32) -> Purpose;
-    /// Mismo id, índice `index` en los 32 bits bajos.
+    /// Mismo id, índice `index` en los 32 bits bajos. `index` es la posición de la extracción dentro del bucle del
+    /// tick (la n-ésima del mismo propósito y sujeto), nunca un contador guardado en la entidad, que sería estado no
+    /// canónico (regla 6, Q-019).
     #[must_use]
     pub const fn nth(self, index: u32) -> Purpose;
     #[must_use]
@@ -316,11 +320,13 @@ impl Purpose {
     pub const fn index(self) -> u32;
 }
 
-/// `xxh3_64` con semilla 0 sobre 32 bytes: `seed.0`, `tick.0`, `subject` y `purpose.0`, cada uno como `u64`
-/// little-endian y en ese orden (ADR-0009). Pura: mismas entradas, mismo valor, en cualquier hilo. No asigna.
-/// `subject` es `Handle::to_raw()` para una entidad, o `handle::raw_or_zero(None)` para una extracción global.
+/// `xxh3_64` con semilla 0 sobre 32 bytes: `seed.0`, `tick.0`, `handle::raw_or_zero(subject)` y `purpose.0`, cada uno
+/// como `u64` little-endian y en ese orden (ADR-0009). Pura: mismas entradas, mismo valor, en cualquier hilo. No asigna.
+/// `subject` es el handle de la entidad, o `None` para una extracción global. El tipo impide pasar como sujeto un
+/// índice denso de slot, que cambia tras un swap-remove y haría que la misma entidad extrajera valores distintos
+/// según la historia de borrados (Q-018).
 #[must_use]
-pub fn random_u64(seed: Seed, tick: Tick, subject: u64, purpose: Purpose) -> u64;
+pub fn random_u64(seed: Seed, tick: Tick, subject: Option<Handle>, purpose: Purpose) -> u64;
 
 /// Los 64 bits de una extracción, con las conversiones habituales. Todas son deterministas y no asignan.
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
@@ -350,7 +356,7 @@ impl Draw {
 
 /// `Draw::from_bits(random_u64(seed, tick, subject, purpose))`.
 #[must_use]
-pub fn draw(seed: Seed, tick: Tick, subject: u64, purpose: Purpose) -> Draw;
+pub fn draw(seed: Seed, tick: Tick, subject: Option<Handle>, purpose: Purpose) -> Draw;
 ```
 
 ### `engine_core::save`
@@ -398,8 +404,8 @@ pub struct Expected {
 }
 
 /// Mensajes en español, fijados en P01-T04. `PartialEq` para que los tests comparen errores enteros.
-/// `UnexpectedKind` escribe los nombres de variante de `Kind` (`Save`, `Replay`) con `Debug`, mientras Q-020
-/// no diga otra cosa; `DataHashMismatch` usa el `Display` hexadecimal de `DataHash`.
+/// `UnexpectedKind` escribe los nombres de variante de `Kind` (`Save`, `Replay`) con `Debug` (Q-020, aceptado);
+/// `DataHashMismatch` usa el `Display` hexadecimal de `DataHash`.
 #[derive(Debug, PartialEq, Eq, thiserror::Error)]
 pub enum SaveError {
     /// Menos de 8 bytes, o los 8 primeros no son `MAGIC`.
@@ -524,6 +530,8 @@ impl Version {
 impl fmt::Display for Version {}
 
 /// La versión de `workspace.package.version`, leída de `CARGO_PKG_VERSION_MAJOR`, `_MINOR` y `_PATCH` al compilar.
+/// La versión del workspace no lleva sufijo de prerrelease (`-alpha`, `-rc.1`): lo comprueba al compilar
+/// `const _: () = assert!(env!("CARGO_PKG_VERSION_PRE").is_empty());` en este módulo (Q-015).
 pub const GAME_VERSION: Version;
 ```
 
@@ -555,7 +563,10 @@ pub struct Span { /* privado */ }
 /// llamada (decisión de P01-T04).
 #[macro_export]
 macro_rules! span { ($name:literal) => { /* ... */ }; }
-/// `engine_core::plot!("unidades_vivas", valor_f64)`. El nombre es un literal: no asigna.
+/// `engine_core::plot!("unidades_vivas", valor_f64)`. El nombre es un literal: sin la feature no asigna nunca; con
+/// ella, un `static` por punto de uso guarda el `PlotName` creado con `PlotName::new_leak` la primera vez, una sola
+/// asignación por punto de uso y ningún `unsafe` expandido en el crate que llama (Q-021; `plot_name!` de
+/// `tracy-client` no se usa).
 #[macro_export]
 macro_rules! plot { ($name:literal, $value:expr) => { /* ... */ }; }
 ```
@@ -663,10 +674,10 @@ Los tests van en `engine/core/tests/aceptacion_core_tNN.rs`, uno por tarea, y us
 - **CA-4.** `postcard::to_allocvec` de `Tick(300)` y de `Ticks(300)` da `[0xAC, 0x02]`; el de `Handle::new(5, 7)` da `[0x05, 0x07]`; el de `Version::new(0, 1, 0)` da `[0x00, 0x01, 0x00]`; y todos vuelven idénticos con `postcard::from_bytes`. Deserializar `[0x05, 0x00]` como `Handle` falla. Lo demuestra: test `ca_04_tick_handle_y_version_postcard_con_bytes_conocidos`.
 - **CA-5.** `size_of::<FxBuildHasher>() == 0`; dos `FxHashMap` construidos con `default()` en dos hilos distintos, con las mismas 10.000 inserciones en el mismo orden, producen la misma secuencia al iterar; `fx_map_with_capacity::<u64, u64>(100).capacity() >= 100` y lo mismo para `fx_set_with_capacity`. Lo demuestra: test `ca_05_colecciones_fx_sin_estado_aleatorio`.
 - **CA-6.** Sobre un bloque de 1 MB de bytes pseudoaleatorios: `write` de todo de una vez, `write` en trozos de 1, 7 y 4.096 bytes y `write_u8` byte a byte dan el mismo `finish()`; `finish()` tras más escrituras cambia; `reset()` devuelve el hash de `new()`. Y para cada fila de la tabla de `HashState`, con al menos un valor por tipo, `hash_of(&valor)` es igual a `write` de la secuencia de bytes escrita a mano en el test según la tabla. Entre otros: `7u8` → `07`; `0x1234u16` → `34 12`; `-2i16` → `FE FF`; `true` → `01`; `1.5f32` → `00 00 C0 3F`; `1.5f64` → `00 00 00 00 00 00 F8 3F`; `Tick(300)` → `2C 01 00 00 00 00 00 00`; `Ticks(5)`, `StateHash(5)`, `DataHash(5)` y `Seed(5)` → `05` y siete `00`; `Handle::new(5, 7)` → `07 00 00 00 05 00 00 00`; `Version::new(0, 1, 0)` → `00 00 01 00 00 00`; `Some(7u8)` → `01 07` y `None::<u8>` → `00`; `&[1u8, 2, 3][..]` y `vec![1u8, 2, 3]` → `03` y siete `00` y `01 02 03`; `&[][..]` como `&[u32]` → `00` por ocho; `[1u8, 2, 3]` → `01 02 03`; `(1u8, 2u16)` → `01 02 00`; `(1u8, 2u16, 3u32)` → `01 02 00 03 00 00 00`; `Vec2::new(1.0, 2.0)` → `00 00 80 3F 00 00 00 40`; `IVec2::new(-1, 2)` → `FF FF FF FF 02 00 00 00`; `UVec3::new(1, 2, 3)` → `01 00 00 00 02 00 00 00 03 00 00 00`; y los `Vec3`, `Vec4`, `IVec3` y `UVec2` análogos. Lo demuestran: tests `ca_06_hash_estado_independiente_del_troceo` y `ca_06_hash_estado_tabla_fila_a_fila`.
-- **CA-7.** `hash_of(&0.0f32) != hash_of(&-0.0f32)`; dos NaN con distinta carga dan hashes distintos; `hash_of(&[1.5f32, -2.25][..])` es igual a `write_u64(2)`, `write_u32(1.5f32.to_bits())`, `write_u32((-2.25f32).to_bits())`. Vía en bloque: para un `Vec<Vec2>` `v` de 15.000 elementos, `hash_of(&v[..])`, `write_u64(15_000)` más `write(bytemuck::cast_slice(&v))`, y `write_u64(15_000)` seguido de `write_f32` por componente dan el mismo `finish()`; para un `Vec<Handle>` `h` de 15.000 elementos, `hash_of(&h[..])`, `write_u64(15_000)` más `write_handles(&h)`, y `write_u64(15_000)` seguido de `write_u64(x.to_raw())` por elemento dan el mismo `finish()`; `write_handles(&[])` deja el hash como estaba; y para un `Vec<Option<Handle>>` de 15.000 elementos, `hash_of` es igual a la secuencia de la regla de `Option` escrita a mano. Lo demuestra: test `ca_07_hash_estado_flotantes_bit_a_bit_y_via_en_bloque`.
+- **CA-7.** `hash_of(&0.0f32) != hash_of(&-0.0f32)`; dos NaN con distinta carga dan hashes distintos; `hash_of(&[1.5f32, -2.25][..])` es igual a `write_u64(2)`, `write_u32(1.5f32.to_bits())`, `write_u32((-2.25f32).to_bits())`. Vía en bloque, para cada fila de la tabla con `hash_state_slice` propio (`u8`, `u16`, `u32`, `u64`, `i8`, `i16`, `i32`, `i64`, `bool`, `f32`, `f64`, `Vec2`, `Vec3`, `Vec4`, `IVec2`, `IVec3`, `UVec2`, `UVec3`): para un `Vec<T>` `v` de 15.000 elementos generados con `proptest` (en los flotantes, con ceros negativos y NaN incluidos), `hash_of(&v[..])`, `write_u64(15_000)` más `write(bytemuck::cast_slice(&v))`, y `write_u64(15_000)` seguido de `hash_state` elemento a elemento dan el mismo `finish()` (Q-017); para un `Vec<Handle>` `h` de 15.000 elementos, `hash_of(&h[..])`, `write_u64(15_000)` más `write_handles(&h)`, y `write_u64(15_000)` seguido de `write_u64(x.to_raw())` por elemento dan el mismo `finish()`; `write_handles(&[])` deja el hash como estaba; y para un `Vec<Option<Handle>>` de 15.000 elementos, `hash_of` es igual a la secuencia de la regla de `Option` escrita a mano. Lo demuestra: test `ca_07_hash_estado_flotantes_bit_a_bit_y_via_en_bloque`.
 - **CA-8.** `StateHasher::new().finish() == StateHash(0x2D06_8005_38D3_94C2)` y `DataHash::of_bytes(&[]) == DataHash(0x2D06_8005_38D3_94C2)`, el valor publicado de XXH3 de 64 bits para la entrada vacía; `DataHash::of_bytes(b"a") == DataHash(0xE6C6_32B6_1E96_4E1F)`; para 100 bloques pseudoaleatorios de longitud entre 0 y 10.000 bytes, `StateHasher` con `write` y `DataHash::of_bytes` coinciden con `xxhash_rust::xxh3::xxh3_64` sobre los mismos bytes; `Display` de ambos es el hexadecimal de 16 dígitos en minúsculas del `u64` (`2d06800538d394c2` para el vacío); y `postcard::to_allocvec` de `Seed(1)` da `[0x01]`, el de `DataHash(u64::MAX)` y el de `StateHash(u64::MAX)` dan nueve `0xFF` seguidos de `0x01`, y los tres vuelven idénticos con `postcard::from_bytes`. `DataHash::of_bytes` se implementa en la tarea de `hash`, porque es la misma función. Lo demuestra: test `ca_08_hash_estado_y_datos_coinciden_con_xxh3_de_referencia`.
-- **CA-9.** `random_u64(Seed(0), Tick::ZERO, 0, Purpose(0)) == 0xA057_271C_9071_C99D`, el `xxh3_64` de 32 bytes a cero; `random_u64(seed, tick, subject, purpose)` es igual a `xxh3_64` de los 32 bytes `seed.0`, `tick.0`, `subject`, `purpose.0` en little-endian, para 1.000 combinaciones generadas con `proptest`; cambiar uno solo de los cuatro cambia el valor en al menos 999 de 1.000 casos; `Purpose::new(7).nth(3)` tiene `id() == 7`, `index() == 3` y `.0 == (7 << 32) | 3`; para cualquier `Draw`: `unit_f32()` y `unit_f64()` están en `[0, 1)`, `below(n) < n` para `n` en `1..=u32::MAX`, `below(1) == 0`, `chance(0, d)` es falso y `chance(d, d)` cierto; `Draw::from_bits(u64::MAX).unit_f32() == 1.0 - 2f32.powi(-24)`; y `below(0)` y `chance(1, 0)` hacen pánico con `rango vacío`. Lo demuestran: tests `ca_09_rng_sin_estado_es_xxh3_de_32_bytes`, `ca_09_rng_rangos_propiedad`, `ca_09_below_cero_panica` y `ca_09_chance_denominador_cero_panica`, en dev y con `cargo test -p engine_core --release`.
-- **CA-10.** Cuatro hilos de `std::thread` calculan cada uno la tabla de `random_u64` para 10.000 ticks, 16 sujetos y 4 propósitos con la misma semilla, y las cuatro tablas son idénticas entre sí y a la calculada en el hilo principal. Lo demuestra: test `ca_10_rng_identico_en_varios_hilos`.
+- **CA-9.** `random_u64(Seed(0), Tick::ZERO, None, Purpose(0)) == 0xA057_271C_9071_C99D`, el `xxh3_64` de 32 bytes a cero; `random_u64(seed, tick, subject, purpose)` es igual a `xxh3_64` de los 32 bytes `seed.0`, `tick.0`, `raw_or_zero(subject)`, `purpose.0` en little-endian, para 1.000 combinaciones generadas con `proptest` con `subject` en `Option<Handle>` (incluido `None`); cambiar uno solo de los cuatro cambia el valor en al menos 999 de 1.000 casos; `Purpose` no implementa `Default` (por revisión, Q-019); `Purpose::new(7).nth(3)` tiene `id() == 7`, `index() == 3` y `.0 == (7 << 32) | 3`; para cualquier `Draw`: `unit_f32()` y `unit_f64()` están en `[0, 1)`, `below(n) < n` para `n` en `1..=u32::MAX`, `below(1) == 0`, `chance(0, d)` es falso y `chance(d, d)` cierto; `Draw::from_bits(u64::MAX).unit_f32() == 1.0 - 2f32.powi(-24)`; y `below(0)` y `chance(1, 0)` hacen pánico con `rango vacío`. Lo demuestran: tests `ca_09_rng_sin_estado_es_xxh3_de_32_bytes`, `ca_09_rng_rangos_propiedad`, `ca_09_below_cero_panica` y `ca_09_chance_denominador_cero_panica`, en dev y con `cargo test -p engine_core --release`.
+- **CA-10.** Cuatro hilos de `std::thread` calculan cada uno la tabla de `random_u64` para 10.000 ticks, 16 sujetos (`None` y 15 handles distintos) y 4 propósitos con la misma semilla, y las cuatro tablas son idénticas entre sí y a la calculada en el hilo principal. Lo demuestra: test `ca_10_rng_identico_en_varios_hilos`.
 - **CA-11.** El ejemplo fijado de "Datos y formatos" (`Kind::Replay`, `format_version: 300`, `game_version: Version::new(0, 1, 0)`, `DataHash(1)`, cuerpo `()`) codifica exactamente a los 16 bytes `50 4C 55 53 55 4C 54 52 01 01 AC 02 00 01 00 01`, y `decode::<()>` de esos 16 bytes con la `Expected` correspondiente devuelve esa cabecera y `()`. Con una struct de prueba de unos 3 MB (varias columnas `Vec<f32>`, `Vec<u32>` y `Vec<Handle>`): `encode` seguido de `decode` con la `Expected` correspondiente devuelve la misma cabecera y el mismo cuerpo; `decode_header` devuelve la cabecera y un resto cuya longitud es la del cuerpo; la cabecera completa ocupa ≤ 34 bytes para cualquier `Header`, comprobado con `format_version: u32::MAX`, `Version::new(u16::MAX, u16::MAX, u16::MAX)` y `DataHash(u64::MAX)`; y el archivo entero pesa menos del doble del tamaño en memoria de las columnas. Lo demuestra: test `ca_11_sobre_ida_y_vuelta_y_cabecera_fijada`.
 - **CA-12.** Partiendo de un sobre válido: cambiar un byte de `MAGIC` da `BadMagic`; un archivo de 7 bytes da `BadMagic`; un archivo de exactamente 8 bytes iguales a `MAGIC` da `Corrupt`; poner el byte de la posición 8 a `2` da `UnsupportedEnvelope { found: 2 }`; un `kind` con índice 7 en la cabecera da `Corrupt`; codificar con `Kind::Save` y exigir `Kind::Replay` da `UnexpectedKind`; `format_version` distinta da `UnsupportedFormat`; `data_hash` distinto da `DataHashMismatch` con los dos valores (regla 18); una `game_version` distinta de `GAME_VERSION` no es error; añadir un byte al final da `TrailingBytes { count: 1 }`; truncar el cuerpo a la mitad da `Corrupt`; truncar dentro de la cabecera da `Corrupt`; un cuerpo `Vec<Handle>` cuyos bytes llevan un handle con generación 0 da `Corrupt`; un cuerpo cuyo `Serialize` devuelve error da `Encode`; y con una cabecera que falla en todo, `decode` devuelve `UnexpectedKind` antes que `UnsupportedFormat` y este antes que `DataHashMismatch`. Lo demuestra: test `ca_12_sobre_rechaza_magia_tipo_version_y_hash_de_datos`.
 - **CA-13.** Un cuerpo codificado como `V1 { a: u32 }` con `format_version: 1` se carga con `decode_header`, se comprueba la versión, se lee con `decode_body::<V1>` y se convierte a `V2 { a: u32, b: u16 }`, mientras `decode::<V2>` con `format_version: 2` exigida devuelve `UnsupportedFormat { expected: 2, found: 1 }`; y en ese mismo camino de migración, `Header::check` con una `Expected` de versión 1 y `data_hash` distinto devuelve `DataHashMismatch` (la migración no esquiva la regla 18). Lo demuestra: test `ca_13_migracion_explicita_por_version_de_formato`.
@@ -676,10 +687,11 @@ Los tests van en `engine/core/tests/aceptacion_core_tNN.rs`, uno por tarea, y us
 - **CA-17.** Sin la feature `tracy` (test bajo `#[cfg(not(feature = "tracy"))]`): `size_of::<Span>() == 0`, `is_active() == false` antes y después de `start()`, `start()` dos veces seguidas no cambia nada, dos zonas anidadas se abren y se cierran en orden, y `span!`, `plot!`, `frame_mark`, `tick_mark` y `set_thread_name` se pueden llamar 100.000 veces sin asignar (medido con `allocation_counter::measure`). Con la feature (test bajo `#[cfg(feature = "tracy")]`, con `cargo test -p engine_core --features tracy`): `is_active()` es cierto sin haber llamado a `start()`, sigue cierto tras `start()` dos veces, y `span!("prueba")`, dos zonas anidadas, una zona abierta en un hilo de `std::thread`, `plot!`, `frame_mark` y `tick_mark` terminan sin pánico. Lo demuestran: tests `ca_17_perfilado_sin_feature_es_nulo` y `ca_17_perfilado_con_feature_no_hace_panico`.
 - **CA-18.** `allocation_counter::measure` cuenta 0 asignaciones en: 10.000 llamadas a `random_u64` y a los métodos de `Draw`; un `StateHasher` que escribe un slice de 1 MB, 10.000 `write_u32`, un `write_handles` de 15.000 handles, un `hash_of` de una columna de 15.000 `Vec2` y hace `finish()` cada 1.000 escrituras; 10.000 operaciones de `Tick` y `Handle`; 10.000 consultas `get` a un `FxHashMap<u64, u64>` ya construido con 1.000 entradas; y 10.000 `Handle::from_raw`. Lo demuestra: test `ca_18_primitivas_sin_asignaciones`.
 - **CA-19.** Existen y corren con `cargo bench -p engine_core`: `benches/hash_estado.rs` (3 MB repartidos en columnas de `f32`, `u32`, `Vec2`, `Handle` y `Option<Handle>`, cada una por `hash_of`, resultado en milisegundos y por columna, para que se vea cuánto cuesta la columna de `Option<Handle>`, que no tiene vía en bloque), `benches/sobre.rs` (`encode` y `decode` del cuerpo de CA-11) y `benches/rng.rs` (`random_u64`, en extracciones por segundo). Lo demuestra: métrica informativa; el hito 2 decide si el hash de estado recibe umbral y si `Option<Handle>` necesita su propia vía en bloque.
-- **CA-20.** `GAME_VERSION` coincide con `env!("CARGO_PKG_VERSION")` del test parseado en tiempo de ejecución, y `GAME_VERSION.to_string()` coincide con esa misma cadena. Lo demuestra: test `ca_20_version_del_juego_igual_a_cargo`.
-- **CA-21.** El texto de `engine/core/src/lib.rs` contiene `#![forbid(unsafe_code)]` y `#![deny(missing_docs)]` (test con `include_str!("../src/lib.rs")`); `RUSTDOCFLAGS="-D warnings" cargo doc -p engine_core --no-deps` termina sin avisos; `cargo tree -p engine_core -e normal --depth 1` lista solo los crates de "Dependencias permitidas"; y `cargo tree -p engine_core -e normal` no contiene `heapless`, `wgpu`, `winit`, `egui`, `rayon` ni ningún `game_*`. Lo demuestran: test `ca_21_lib_rs_lleva_los_atributos` y la puerta adicional, cuyos dos `cargo tree` compara el orquestador con la lista en `/verificar`.
-- **CA-22.** Existen `engine/core/clippy.toml`, `engine/sim/clippy.toml` y `game/rules/clippy.toml`, idénticos, con `disallowed-types` para `std::collections::HashMap`, `std::collections::HashSet` y `std::hash::RandomState` y un motivo que cite la regla 13 y el ADR-0009; un test lee los tres (el propio con `include_str!("../clippy.toml")`, los otros dos desde `CARGO_MANIFEST_DIR`) y comprueba que son idénticos y contienen las tres rutas; `cargo clippy --workspace --all-targets -- -D warnings` pasa; y, al añadir dentro de una función cualquiera de `engine_core` la línea `let _m: std::collections::HashMap<u8, u8> = std::collections::HashMap::new();`, `cargo clippy -p engine_core -- -D warnings` falla con `disallowed_types`. Si `collections.rs` necesita nombrar `HashMap` para definir los alias, lleva `#[allow(clippy::disallowed_types)]` a nivel de módulo con su comentario. Lo demuestran: test `ca_22_tres_clippy_toml_identicos` y la prueba negativa de la línea añadida, que hace el orquestador en el worktree de la tarea y retira antes de integrar.
-- **CA-23.** `xtask` pasa a tener `src/lib.rs` (con `#![forbid(unsafe_code)]`) con las comprobaciones de `check-arch` como funciones puras sobre datos ya extraídos: para la nueva, `direct_dependency_violations(members)` recibe, por cada miembro del workspace, su nombre y sus dependencias directas con su tipo (normal, de compilación o de desarrollo), y devuelve un mensaje que cite el ADR-0009 por cada miembro distinto de `engine_core` que declare `rustc-hash`, `xxhash-rust` o `bytemuck`; `main.rs` la alimenta con `cargo_metadata` y falla si devuelve algo. Y `cargo_config_violations(text)`, sobre el texto de `.cargo/config.toml`, devuelve un mensaje que cite Q-011 si contiene `target-cpu` o `target-feature`; `main.rs` la llama con el archivo real si existe. Con el workspace tal cual, `cargo xtask check-arch` sigue pasando. Lo demuestran: tests en `xtask/tests/aceptacion_check_arch_t10.rs` con entradas construidas a mano: un miembro ajeno con cada uno de los tres crates en cada uno de los tres tipos de dependencia da error, `engine_core` con los tres no da error, un workspace sin ellos no da error, un texto de configuración con `target-cpu` o con `target-feature` da error y el texto del `.cargo/config.toml` actual no; y la puerta, donde `check-arch` corre en cada integración. Es una tarea propia del plan, que toca `xtask/` y lo dice en su encargo.
+- **CA-20.** `GAME_VERSION` coincide con `env!("CARGO_PKG_VERSION")` del test parseado en tiempo de ejecución, y `GAME_VERSION.to_string()` coincide con esa misma cadena; `env!("CARGO_PKG_VERSION_PRE")` está vacío y el texto de `engine/core/src/version.rs` contiene `CARGO_PKG_VERSION_PRE` dentro de un `const _: () = assert!(...)` (Q-015). Lo demuestran: tests `ca_20_version_del_juego_igual_a_cargo` (P01-T02) y `ca_20_sin_prerrelease` (P01-T09).
+- **CA-21.** El texto de `engine/core/src/lib.rs` contiene `#![forbid(unsafe_code)]` y `#![deny(missing_docs)]` (test con `include_str!("../src/lib.rs")`); `RUSTDOCFLAGS="-D warnings" cargo doc -p engine_core --no-deps` termina sin avisos; `cargo tree -p engine_core -e normal --depth 1` lista solo los crates de "Dependencias permitidas"; y `cargo tree -p engine_core -e normal` no contiene `heapless`, `wgpu`, `winit`, `egui`, `rayon`, `rand`, `getrandom`, `hashbrown`, `ahash`, `foldhash`, `indexmap` ni ningún `game_*` (los seis de aleatoriedad y colecciones, por Q-014). Lo demuestran: test `ca_21_lib_rs_lleva_los_atributos` y la puerta adicional, cuyos dos `cargo tree` compara el orquestador con la lista en `/verificar`.
+- **CA-22.** Existen `engine/core/clippy.toml`, `engine/sim/clippy.toml` y `game/rules/clippy.toml`, idénticos, con `disallowed-types` para `std::collections::HashMap`, `std::collections::HashSet` y `std::hash::RandomState` con un motivo que cite la regla 13 y el ADR-0009, y para `glam::Vec3A`, `glam::Mat3A` y `glam::Affine3A` con un motivo que cite la regla 6 (su carril de relleno no es canónico y `Pod` permite hashearlo en bloque; se usan `Vec3`, `Mat3` y `Mat4`; Q-016); un test lee los tres (el propio con `include_str!("../clippy.toml")`, los otros dos desde `CARGO_MANIFEST_DIR`) y comprueba que son idénticos y contienen las seis rutas; `cargo clippy --workspace --all-targets -- -D warnings` pasa; y, al añadir dentro de una función cualquiera de `engine_core` la línea `let _m: std::collections::HashMap<u8, u8> = std::collections::HashMap::new();`, o la línea `let _v = glam::Vec3A::ZERO;`, `cargo clippy -p engine_core -- -D warnings` falla con `disallowed_types`. Si `collections.rs` necesita nombrar `HashMap` para definir los alias, lleva `#[allow(clippy::disallowed_types)]` a nivel de módulo con su comentario. Lo demuestran: test `ca_22_tres_clippy_toml_identicos` y la prueba negativa de la línea añadida, que hace el orquestador en el worktree de la tarea y retira antes de integrar.
+- **CA-23.** `xtask` pasa a tener `src/lib.rs` (con `#![forbid(unsafe_code)]`) con las comprobaciones de `check-arch` como funciones puras sobre datos ya extraídos: para la nueva, `direct_dependency_violations(members)` recibe, por cada miembro del workspace, su nombre y sus dependencias directas con su tipo (normal, de compilación o de desarrollo), y devuelve un mensaje que cite el ADR-0009 por cada miembro distinto de `engine_core` que declare `rustc-hash`, `xxhash-rust` o `bytemuck`, y un mensaje que cite Q-014 por cada vez que `engine_sim` o `game_rules` declare `hashbrown`, `ahash`, `foldhash`, `indexmap` o un crate cuyo nombre empiece por `rand`, en cualquiera de los tres tipos de dependencia; `main.rs` la alimenta con `cargo_metadata` y falla si devuelve algo. `cargo_config_violations(text)`, sobre el texto de `.cargo/config.toml`, devuelve un mensaje que cite Q-011 si contiene `target-cpu` o `target-feature`; `main.rs` la llama con el archivo real si existe. Y `allow_disallowed_types_violations(files)`, sobre pares (ruta relativa, texto) de los `.rs` bajo `engine/core`, `engine/sim` y `game/rules`, devuelve un mensaje por cada archivo distinto de `engine/core/src/collections.rs` cuyo texto contenga `allow(clippy::disallowed_types)` (Q-014); `main.rs` la alimenta recorriendo esas tres carpetas. Con el workspace tal cual, `cargo xtask check-arch` sigue pasando. Lo demuestran: tests en `xtask/tests/aceptacion_check_arch_t10.rs` con entradas construidas a mano: un miembro ajeno con cada uno de los tres crates del ADR-0009 en cada uno de los tres tipos de dependencia da error, `engine_core` con los tres no da error, `engine_sim` con `hashbrown` o con `rand_xoshiro` da error y `game_app` con ellos no, un workspace sin ellos no da error, un texto de configuración con `target-cpu` o con `target-feature` da error y el texto del `.cargo/config.toml` actual no, un archivo `engine/sim/src/x.rs` con `#[allow(clippy::disallowed_types)]` da error y `engine/core/src/collections.rs` con la misma línea no; y la puerta, donde `check-arch` corre en cada integración. Es una tarea propia del plan, que toca `xtask/` y lo dice en su encargo.
+- **CA-24.** `deny.toml` lleva en `[bans] features` una entrada con `exact = true` para `glam` y otra para `rustc-hash`, cada una con la lista exacta de features que el workspace activa hoy (la tarea la confirma con `cargo tree -p engine_core -e features` y la deja escrita en el propio `deny.toml` con un comentario que cite Q-014); `cargo deny check` pasa con el workspace tal cual; y, al añadir `glam = { workspace = true, features = ["scalar-math"] }` a `engine/sim/Cargo.toml`, o `rustc-hash = { workspace = true, features = ["rand"] }`, `cargo deny check` falla en `bans`. Una feature nueva de esos dos crates entra solo por una tarea de contrato que cambie la lista y la spec de quien la pida. Lo demuestran: la puerta y las dos pruebas negativas, que hace y retira el orquestador en el worktree de P01-T10.
 
 **Reparto previsto en tareas**, para `/planificar`. Todas van en serie, porque una tarea que toca `engine_core` nunca va en paralelo con otra, y los contratos van antes que las implementaciones:
 
@@ -691,8 +703,10 @@ Los tests van en `engine/core/tests/aceptacion_core_tNN.rs`, uno por tarea, y us
 6. `rng` (CA-9, CA-10).
 7. `data` salvo `of_bytes` (CA-15, CA-16).
 8. `save` (CA-11 a CA-14).
-9. Cierre: `profile`, los tres benchmarks y CA-17 a CA-19 y CA-21; CA-18 va aquí porque cruza módulos.
-10. Extensión de `check-arch` en `xtask` (CA-23).
+9. Cierre: `profile`, los tres benchmarks, la aserción de prerrelease de `version` y CA-17 a CA-21; CA-18 va aquí porque cruza módulos.
+10. Extensión de `check-arch` en `xtask` y features fijadas en `deny.toml` (CA-23, CA-24).
+11. Añadida el 31 de octubre de 2026 (Q-016), ligera, entre la 4 y la 5: `Vec3A`, `Mat3A` y `Affine3A` en los tres `clippy.toml` (CA-22).
+12. Añadida el 31 de octubre de 2026 (Q-018, Q-019), contrato, entre la 5 y la 6: `rng` con sujeto `Option<Handle>` y `Purpose` sin `Default`.
 
 Cada contrato ronda las 300 líneas con su documentación en español; ninguna implementación pasa de un módulo.
 
@@ -744,7 +758,20 @@ Las tomó el orquestador al escribir esta spec porque ningún documento las fija
 
 ## Preguntas abiertas
 
-Ninguna. Las dos que salieron de la revisión las respondió el autor el 26 de octubre de 2026, las dos con la opción (a), y están incorporadas arriba:
+Ninguna. Las respondidas están incorporadas arriba; el detalle de cada una está en `specs/preguntas-pendientes.md`. De la verificación de P01-T01 a P01-T04 salieron Q-012 a Q-021, respondidas el 31 de octubre de 2026:
+
+- **Q-012.** La feature `tracy` no compila con el Windows SDK 10.0.19041: el autor actualiza el SDK; no cambia nada aquí.
+- **Q-013.** El compromiso de determinismo es "misma máquina, mismo binario". Los dorados de la CI no son comparables con los locales mientras `glam` use las trascendentes de la UCRT (nota en el ADR-0009). Sin `libm` por ahora.
+- **Q-014.** Features de `glam` y `rustc-hash` fijadas en `deny.toml` (CA-24); listas de CA-21 y CA-23 ampliadas con crates de aleatoriedad y colecciones; `check-arch` busca `allow(clippy::disallowed_types)` fuera de `collections.rs`.
+- **Q-015.** Sin sufijo de prerrelease en la versión del workspace; aserción en compilación en `version` (CA-20).
+- **Q-016.** `Vec3A`, `Mat3A` y `Affine3A` vetados en los tres `clippy.toml` (CA-22).
+- **Q-017.** CA-7 comprueba la vía en bloque en todas las filas de la tabla.
+- **Q-018.** El sujeto de `random_u64` y `draw` es `Option<Handle>` (CA-9, CA-10).
+- **Q-019.** `Purpose` sin `Default`; la doc de `nth` fija de dónde sale el índice.
+- **Q-020.** `UnexpectedKind` usa el `Debug` de `Kind`.
+- **Q-021.** `plot!` con la feature cachea un `PlotName::new_leak` por punto de uso; ningún `unsafe` expandido en el llamante.
+
+Las dos de la revisión de la spec las respondió el autor el 26 de octubre de 2026, las dos con la opción (a):
 
 - **Q-010.** El hash de datos cubre solo los `*.ron` bajo `data/` (`DATA_EXTENSION`, "Datos y formatos", CA-15). `data/README.md` queda aclarado en el mismo commit; la nota en el ADR-0009 va con el siguiente commit que toque ese archivo.
 - **Q-011.** `-C target-cpu` y `-C target-feature` quedan prohibidos en `.cargo/config.toml` de todo el workspace hasta que el hito 2 mida, y lo vigila `check-arch` (`math`, CA-23). La constitución no tiene regla para esta comprobación: cuando el hito 2 decida si la prohibición se queda, se le pone regla o se retira la comprobación.
