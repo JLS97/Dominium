@@ -142,7 +142,7 @@ Diez tareas en serie, según el "Reparto previsto en tareas" de la spec. Ninguna
 - **Paralelizable:** no: es contrato y toca el `Cargo.toml` raíz
 - **Revisores:** revisor-constitucion, cazador-determinismo
 - **Fuera de alcance:** cualquier cuerpo que no sea `todo!()`, salvo constantes y derivaciones; las firmas de `world`, `sim`, `replay`, `save` y `desync` (contrato B); contenido de los benchmarks; `specs/`
-- **Estado:** pendiente
+- **Estado:** integrada (2026-10-31)
 
 ### P02-T02 · `buffer`, `Column`, `Columns` y `Table` hasta `apply_removals`
 

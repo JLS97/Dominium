@@ -33,6 +33,12 @@ bytemuck = "1.25"
 thiserror = "2.0"
 tracy-client = { version = "0.19", default-features = false, features = ["enable"] }
 
+# `engine_sim` (specs/architecture/engine_sim.md, "Dependencias permitidas").
+# `engine_core` lleva versión para que `wildcards = "deny"` de deny.toml no
+# lo tome por comodín.
+engine_core = { path = "engine/core", version = "0.1.0" }
+rayon = "1.12"
+
 # Solo para desarrollo: tests de propiedades, benchmarks y recuento de asignaciones.
 proptest = "1.12"
 criterion = { version = "0.8", default-features = false, features = ["cargo_bench_support"] }
