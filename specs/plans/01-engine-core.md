@@ -207,7 +207,7 @@ Doce tareas en serie: las diez del "Reparto previsto en tareas" de la spec más 
 - **Paralelizable:** no, porque toca `engine_core`
 - **Revisores:** revisor-constitucion, cazador-determinismo
 - **Fuera de alcance:** el benchmark `rng.rs`; cualquier aleatoriedad con estado
-- **Estado:** pendiente
+- **Estado:** integrada (2026-10-31)
 
 ### P01-T07 · `data` salvo `of_bytes`
 
