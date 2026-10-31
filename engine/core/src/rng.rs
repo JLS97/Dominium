@@ -10,6 +10,7 @@
 
 use serde::{Deserialize, Serialize};
 
+use crate::handle::Handle;
 use crate::time::Tick;
 
 /// Semilla de la partida. Es canónica: va en el guardado y en el replay.
@@ -18,8 +19,9 @@ use crate::time::Tick;
 pub struct Seed(pub u64);
 
 /// Para qué se extrae aleatoriedad: un id de 32 bits que fija quien la usa, y un índice para la n-ésima extracción
-/// del mismo propósito en el mismo tick y sujeto (Q-009). La aleatoriedad no tiene estado canónico.
-#[derive(Clone, Copy, Debug, Default, PartialEq, Eq, Hash)]
+/// del mismo propósito en el mismo tick y sujeto (Q-009). La aleatoriedad no tiene estado canónico. Sin `Default`:
+/// el propósito se declara siempre con `new`, para que el id 0 no se obtenga por omisión (Q-019).
+#[derive(Clone, Copy, Debug, PartialEq, Eq, Hash)]
 #[repr(transparent)]
 pub struct Purpose(pub u64);
 
@@ -30,7 +32,9 @@ impl Purpose {
         panic!("P01-T06: pendiente de implementar")
     }
 
-    /// Mismo id, índice `index` en los 32 bits bajos.
+    /// Mismo id, índice `index` en los 32 bits bajos. `index` es la posición de la extracción dentro del bucle del
+    /// tick (la n-ésima del mismo propósito y sujeto), nunca un contador guardado en la entidad, que sería estado no
+    /// canónico (regla 6, Q-019).
     #[must_use]
     pub const fn nth(self, index: u32) -> Purpose {
         panic!("P01-T06: pendiente de implementar")
@@ -49,11 +53,13 @@ impl Purpose {
     }
 }
 
-/// `xxh3_64` con semilla 0 sobre 32 bytes: `seed.0`, `tick.0`, `subject` y `purpose.0`, cada uno como `u64`
-/// little-endian y en ese orden (ADR-0009). Pura: mismas entradas, mismo valor, en cualquier hilo. No asigna.
-/// `subject` es `Handle::to_raw()` para una entidad, o `handle::raw_or_zero(None)` para una extracción global.
+/// `xxh3_64` con semilla 0 sobre 32 bytes: `seed.0`, `tick.0`, `handle::raw_or_zero(subject)` y `purpose.0`, cada uno
+/// como `u64` little-endian y en ese orden (ADR-0009). Pura: mismas entradas, mismo valor, en cualquier hilo. No asigna.
+/// `subject` es el handle de la entidad, o `None` para una extracción global. El tipo impide pasar como sujeto un
+/// índice denso de slot, que cambia tras un swap-remove y haría que la misma entidad extrajera valores distintos
+/// según la historia de borrados (Q-018).
 #[must_use]
-pub fn random_u64(seed: Seed, tick: Tick, subject: u64, purpose: Purpose) -> u64 {
+pub fn random_u64(seed: Seed, tick: Tick, subject: Option<Handle>, purpose: Purpose) -> u64 {
     todo!("P01-T06")
 }
 
@@ -107,6 +113,6 @@ impl Draw {
 
 /// `Draw::from_bits(random_u64(seed, tick, subject, purpose))`.
 #[must_use]
-pub fn draw(seed: Seed, tick: Tick, subject: u64, purpose: Purpose) -> Draw {
+pub fn draw(seed: Seed, tick: Tick, subject: Option<Handle>, purpose: Purpose) -> Draw {
     todo!("P01-T06")
 }
