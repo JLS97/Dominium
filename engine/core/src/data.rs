@@ -4,9 +4,9 @@
 //! Es el único módulo del crate que toca el sistema de archivos, y nunca en un
 //! camino caliente. Qué archivos existen y qué structs contienen lo deciden las
 //! specs de features y de `game_rules`.
-// Contrato B1: los cuerpos son marcadores pendientes y no usan sus parámetros.
-// `expect` obliga a P01-T05 (`of_bytes` y `Display`) y a P01-T07 (el resto) a retirar esta línea.
-#![expect(unused_variables, reason = "cuerpos pendientes de P01-T05 y P01-T07")]
+// Contrato B1: `list_data_files`, `hash_data_tree`, `parse_ron` y `load_ron` son marcadores pendientes
+// y no usan sus parámetros. `expect` obliga a P01-T07 a retirar esta línea al implementarlos.
+#![expect(unused_variables, reason = "cuerpos pendientes de P01-T07")]
 
 use core::fmt;
 use std::path::{Path, PathBuf};
@@ -20,7 +20,7 @@ pub struct DataHash(pub u64);
 
 impl fmt::Display for DataHash {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
-        todo!("P01-T05")
+        write!(f, "{:016x}", self.0)
     }
 }
 
@@ -28,7 +28,7 @@ impl DataHash {
     /// `xxh3_64` con semilla 0 de `bytes`.
     #[must_use]
     pub fn of_bytes(bytes: &[u8]) -> DataHash {
-        todo!("P01-T05")
+        DataHash(xxhash_rust::xxh3::xxh3_64(bytes))
     }
 }
 
