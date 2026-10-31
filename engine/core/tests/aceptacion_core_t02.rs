@@ -394,9 +394,10 @@ fn ca_20_version_del_juego_igual_a_cargo() {
 
 // CA-22: existen `engine/core/clippy.toml`, `engine/sim/clippy.toml` y `game/rules/clippy.toml`,
 // idénticos, con `disallowed-types` para `std::collections::HashMap`,
-// `std::collections::HashSet` y `std::hash::RandomState` y un motivo que cite la regla 13 y el
-// ADR-0009. El propio se lee con `include_str!`, los otros dos desde `CARGO_MANIFEST_DIR`.
-// La prueba negativa con `cargo clippy` la hace el orquestador en `/verificar`.
+// `std::collections::HashSet` y `std::hash::RandomState` con un motivo que cite la regla 13 y el
+// ADR-0009, y para `glam::Vec3A`, `glam::Mat3A` y `glam::Affine3A` con un motivo que cite la
+// regla 6 (Q-016, P01-T11). El propio se lee con `include_str!`, los otros dos desde
+// `CARGO_MANIFEST_DIR`. Las dos pruebas negativas con `cargo clippy` las hace el orquestador.
 #[test]
 fn ca_22_tres_clippy_toml_identicos() {
     let manifest_dir = Path::new(env!("CARGO_MANIFEST_DIR"));
@@ -426,10 +427,14 @@ fn ca_22_tres_clippy_toml_identicos() {
     );
 
     assert!(CORE_CLIPPY_TOML.contains("disallowed-types"));
+    // Seis rutas desde P01-T11 (Q-016): tres de `std` por la regla 13 y tres de `glam` por la regla 6.
     for forbidden in [
         "std::collections::HashMap",
         "std::collections::HashSet",
         "std::hash::RandomState",
+        "glam::Vec3A",
+        "glam::Mat3A",
+        "glam::Affine3A",
     ] {
         assert!(
             CORE_CLIPPY_TOML.contains(forbidden),
@@ -437,25 +442,36 @@ fn ca_22_tres_clippy_toml_identicos() {
         );
     }
 
-    // Cada tipo prohibido lleva un motivo que cita la regla 13 y el ADR-0009.
+    // Cada tipo prohibido lleva un motivo: los de `std` citan la regla 13 y el ADR-0009; los de `glam`, la regla 6.
     let entries: Vec<&str> = CORE_CLIPPY_TOML
         .lines()
         .filter(|line| line.contains("path = \""))
         .collect();
     assert_eq!(
         entries.len(),
-        3,
-        "se esperan exactamente tres tipos prohibidos"
+        6,
+        "se esperan exactamente seis tipos prohibidos"
     );
     for entry in entries {
         assert!(entry.contains("reason = \""), "entrada sin motivo: {entry}");
-        assert!(
-            entry.contains("regla 13"),
-            "el motivo no cita la regla 13: {entry}"
-        );
-        assert!(
-            entry.contains("ADR-0009"),
-            "el motivo no cita el ADR-0009: {entry}"
-        );
+        if entry.contains("path = \"std::") {
+            assert!(
+                entry.contains("regla 13"),
+                "el motivo no cita la regla 13: {entry}"
+            );
+            assert!(
+                entry.contains("ADR-0009"),
+                "el motivo no cita el ADR-0009: {entry}"
+            );
+        } else {
+            assert!(
+                entry.contains("path = \"glam::"),
+                "ruta prohibida fuera de `std` y `glam`: {entry}"
+            );
+            assert!(
+                entry.contains("regla 6"),
+                "el motivo no cita la regla 6: {entry}"
+            );
+        }
     }
 }

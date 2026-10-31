@@ -2,9 +2,15 @@
 # game_rules ninguna colección con hash usa el hasher por defecto de la
 # biblioteca estándar, porque SipHash se siembra al azar en cada proceso y
 # rompería el determinismo. Se usan los alias de `engine_core::collections`.
+# Regla 6 (Q-016): los tipos alineados de glam llevan un carril de relleno que
+# no es canónico y que `Pod` permite hashear en bloque; una columna guardada y
+# cargada daría otro hash. Se usan `Vec3`, `Mat3` y `Mat4`.
 # Este archivo es idéntico en engine/core/, engine/sim/ y game/rules/ (CA-22).
 disallowed-types = [
     { path = "std::collections::HashMap", reason = "regla 13 y ADR-0009: hasher sembrado al azar; usa `engine_core::collections::FxHashMap`" },
     { path = "std::collections::HashSet", reason = "regla 13 y ADR-0009: hasher sembrado al azar; usa `engine_core::collections::FxHashSet`" },
     { path = "std::hash::RandomState", reason = "regla 13 y ADR-0009: estado aleatorio por proceso; usa `engine_core::collections::FxBuildHasher`" },
+    { path = "glam::Vec3A", reason = "regla 6 (Q-016): el cuarto carril no es canónico y se hashea en bloque; usa `Vec3`" },
+    { path = "glam::Mat3A", reason = "regla 6 (Q-016): las columnas `Vec3A` llevan relleno no canónico; usa `Mat3`" },
+    { path = "glam::Affine3A", reason = "regla 6 (Q-016): se compone de `Mat3A` y `Vec3A` con relleno no canónico; usa `Mat4`" },
 ]

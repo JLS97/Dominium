@@ -272,7 +272,7 @@ Doce tareas en serie: las diez del "Reparto previsto en tareas" de la spec más 
 - **Paralelizable:** no: la hace la sesión principal sobre la rama de integración
 - **Revisores:** revisor-constitucion, en modo ligero
 - **Fuera de alcance:** cualquier `.rs` que no sea el test; cualquier otra ruta vetada
-- **Estado:** pendiente
+- **Estado:** integrada (2026-10-31)
 
 ### P01-T12 · Contrato B1 revisado: sujeto de `rng` y `Purpose` sin `Default`
 
