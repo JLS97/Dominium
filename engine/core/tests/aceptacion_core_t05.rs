@@ -4,9 +4,10 @@
 //! API pública de `engine_core` y no los modifica el implementador. Toda
 //! comparación es entre `finish()` de dos hashers construidos por caminos
 //! distintos, o contra la implementación de referencia `xxhash_rust::xxh3::xxh3_64`
-//! y los valores publicados de XXH3 que la spec fija en CA-8. Los bytes
-//! pseudoaleatorios salen de un xorshift con semilla fija escrito aquí mismo,
-//! nunca de la aleatoriedad del sistema.
+//! y los valores publicados de XXH3 que la spec fija en CA-8. Nada sale de la
+//! aleatoriedad del sistema: los bytes pseudoaleatorios de CA-6 y CA-8 salen de un
+//! xorshift con semilla fija escrito aquí mismo, y las columnas de CA-7 las genera
+//! `proptest` con la misma semilla fija, así que cada ejecución repite los mismos casos.
 
 use core::fmt::Debug;
 use core::num::NonZeroU32;
@@ -19,7 +20,7 @@ use engine_core::rng::Seed;
 use engine_core::time::{Tick, Ticks};
 use engine_core::version::Version;
 use proptest::prelude::*;
-use proptest::test_runner::{Config, TestError, TestRunner};
+use proptest::test_runner::{Config, RngSeed, TestError, TestRunner};
 use xxhash_rust::xxh3::xxh3_64;
 
 /// Valor publicado de XXH3 de 64 bits para la entrada vacía (CA-8).
@@ -453,12 +454,15 @@ fn ca_06_hash_estado_tabla_fila_a_fila() {
     assert_glam_rows();
 }
 
-/// Configuración de `proptest` para las columnas de CA-7.
+/// Configuración de `proptest` para las columnas de CA-7. La semilla va fija: con
+/// `RngSeed::Random` (el valor por defecto de `Config`) el generador se sembraría desde la
+/// entropía del sistema y las columnas cambiarían en cada ejecución.
 fn column_config() -> Config {
     Config {
         cases: COLUMN_CASES,
         max_shrink_iters: COLUMN_SHRINK_ITERS,
         source_file: Some(file!()),
+        rng_seed: RngSeed::Fixed(GENERATOR_SEED),
         ..Config::default()
     }
 }
