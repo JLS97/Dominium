@@ -6,9 +6,6 @@
 //! define el cuerpo del replay y el del guardado, y `game_rules` sus structs
 //! canónicas. Quien define el cuerpo lo versiona con `format_version` y migra
 //! con `decode_header` más `decode_body`; este crate no migra nada.
-// Contrato B2: los cuerpos son marcadores pendientes y no usan sus parámetros.
-// `expect` obliga a P01-T08 a retirar esta línea al implementar el módulo.
-#![expect(unused_variables, reason = "cuerpos pendientes de P01-T08")]
 
 use serde::{Deserialize, Serialize, de::DeserializeOwned};
 
@@ -46,7 +43,26 @@ pub struct Header {
 impl Header {
     /// Comprueba, en este orden, `kind`, `format_version` y `data_hash`, y devuelve el primer error.
     pub fn check(&self, expected: &Expected) -> Result<(), SaveError> {
-        todo!("P01-T08")
+        if self.kind != expected.kind {
+            return Err(SaveError::UnexpectedKind {
+                expected: expected.kind,
+                found: self.kind,
+            });
+        }
+        if self.format_version != expected.format_version {
+            return Err(SaveError::UnsupportedFormat {
+                expected: expected.format_version,
+                found: self.format_version,
+            });
+        }
+        if self.data_hash != expected.data_hash {
+            return Err(SaveError::DataHashMismatch {
+                expected: expected.data_hash,
+                found: self.data_hash,
+            });
+        }
+        // `game_version` es informativa y no se comprueba nunca.
+        Ok(())
     }
 }
 
@@ -117,20 +133,33 @@ pub enum SaveError {
     Encode(String),
 }
 
+/// Serializa `value` en `postcard` al final de `out`, creciendo sobre su capacidad.
+///
+/// `&mut Vec<u8>` es un `std::io::Write` que escribe con `extend_from_slice`, así que no asigna
+/// mientras la capacidad alcance, y al fallar el `Vec` sigue en manos del llamante.
+fn write_postcard<T: Serialize + ?Sized>(value: &T, out: &mut Vec<u8>) -> postcard::Result<()> {
+    postcard::to_io(value, out).map(|_| ())
+}
+
 /// Vacía `out` y escribe en él `MAGIC`, `ENVELOPE_VERSION`, la cabecera y el cuerpo, en `postcard`.
 /// Reutiliza la capacidad de `out`: llamado dos veces con el mismo cuerpo, no vuelve a asignar.
-// El contrato pide `&mut Vec<u8>` para vaciarlo y crecer en él; clippy solo ve un slice porque el cuerpo
-// es un marcador. En cuanto P01-T08 use `clear` y `extend_from_slice`, este `expect` sobra y hay que quitarlo.
-#[expect(
-    clippy::ptr_arg,
-    reason = "la firma es la del contrato y el cuerpo pendiente no usa aún la capacidad del Vec"
-)]
+/// Si devuelve `Encode`, deja `out` vacío y con su capacidad intacta: nunca queda un sobre a medias.
 pub fn encode<T: Serialize + ?Sized>(
     header: &Header,
     body: &T,
     out: &mut Vec<u8>,
 ) -> Result<(), SaveError> {
-    todo!("P01-T08")
+    out.clear();
+    out.extend_from_slice(&MAGIC);
+    out.push(ENVELOPE_VERSION);
+    let written = write_postcard(header, out).and_then(|()| write_postcard(body, out));
+    match written {
+        Ok(()) => Ok(()),
+        Err(error) => {
+            out.clear();
+            Err(SaveError::Encode(error.to_string()))
+        }
+    }
 }
 
 /// `encode` sobre un `Vec` nuevo.
@@ -138,18 +167,42 @@ pub fn encode_to_vec<T: Serialize + ?Sized>(
     header: &Header,
     body: &T,
 ) -> Result<Vec<u8>, SaveError> {
-    todo!("P01-T08")
+    let mut out = Vec::new();
+    encode(header, body, &mut out)?;
+    Ok(out)
 }
 
 /// Valida `MAGIC` y `ENVELOPE_VERSION`, decodifica la cabecera y devuelve el resto, que es el cuerpo sin tocar.
 /// Es el primer paso de una migración: se mira `format_version` y se elige con qué struct leer el cuerpo.
 pub fn decode_header(bytes: &[u8]) -> Result<(Header, &[u8]), SaveError> {
-    todo!("P01-T08")
+    // Menos de 8 bytes o los 8 primeros distintos de `MAGIC`: no es un archivo nuestro.
+    if !bytes.starts_with(&MAGIC) {
+        return Err(SaveError::BadMagic);
+    }
+    // Exactamente `MAGIC`: es nuestro, pero está truncado antes de la versión del sobre.
+    let Some(&found) = bytes.get(MAGIC.len()) else {
+        return Err(SaveError::Corrupt(String::from(
+            "el archivo termina tras `PLUSULTR`, sin el byte de versión del sobre",
+        )));
+    };
+    if found != ENVELOPE_VERSION {
+        return Err(SaveError::UnsupportedEnvelope { found });
+    }
+    // Cabecera truncada o `Kind` con índice desconocido: lo detecta el deserializador.
+    let after_version = &bytes[MAGIC.len() + 1..];
+    postcard::take_from_bytes::<Header>(after_version)
+        .map_err(|error| SaveError::Corrupt(error.to_string()))
 }
 
 /// Decodifica un cuerpo entero. Exige consumirlo todo; si sobran bytes, `TrailingBytes`.
 pub fn decode_body<T: DeserializeOwned>(body: &[u8]) -> Result<T, SaveError> {
-    todo!("P01-T08")
+    // Un cuerpo truncado o un `Handle` con generación 0 los rechaza el deserializador.
+    let (value, rest) = postcard::take_from_bytes::<T>(body)
+        .map_err(|error| SaveError::Corrupt(error.to_string()))?;
+    if !rest.is_empty() {
+        return Err(SaveError::TrailingBytes { count: rest.len() });
+    }
+    Ok(value)
 }
 
 /// `decode_header`, `Header::check(expected)` y `decode_body`, en ese orden. El camino normal de carga.
@@ -157,5 +210,8 @@ pub fn decode<T: DeserializeOwned>(
     bytes: &[u8],
     expected: &Expected,
 ) -> Result<(Header, T), SaveError> {
-    todo!("P01-T08")
+    let (header, body) = decode_header(bytes)?;
+    header.check(expected)?;
+    let value = decode_body::<T>(body)?;
+    Ok((header, value))
 }
