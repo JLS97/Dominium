@@ -212,6 +212,7 @@ impl fmt::Display for StateHash {}
 
 /// xxh3 de 64 bits en streaming con semilla 0 (ADR-0009). Vive en la pila (576 bytes) y no asigna.
 /// El hash de una secuencia de bytes no depende de cómo se trocee entre llamadas a `write*`.
+/// Un clon a mitad de secuencia continúa exactamente igual que el original (fijado en P01-T05).
 #[derive(Clone, Default)]
 pub struct StateHasher { /* privado */ }
 
@@ -234,9 +235,9 @@ impl StateHasher {
     /// Un byte: 0 o 1.
     pub fn write_bool(&mut self, v: bool);
     /// Los `to_raw()` de `handles` en orden, como `u64` little-endian y sin longitud delante. Mismos bytes que
-    /// `write_u64(h.to_raw())` por elemento, pero troceados en bloques desde un buffer de pila de tamaño fijo: es la
-    /// vía en bloque de las columnas de handles, que no pueden ir por `cast_slice` porque su memoria es (slot, generación).
-    /// Con un slice vacío no escribe nada.
+    /// `write_u64(h.to_raw())` por elemento, pero troceados en bloques desde un buffer de pila de tamaño fijo (64 handles,
+    /// 512 bytes, fijado en P01-T05): es la vía en bloque de las columnas de handles, que no pueden ir por `cast_slice`
+    /// porque su memoria es (slot, generación). Con un slice vacío no escribe nada.
     pub fn write_handles(&mut self, handles: &[Handle]);
     pub fn write_value<T: HashState + ?Sized>(&mut self, value: &T);
     /// Hash de todo lo escrito hasta ahora. No consume ni reinicia: sirve para el hash por sistema del buscador de desincronizaciones.

@@ -189,7 +189,7 @@ Doce tareas en serie: las diez del "Reparto previsto en tareas" de la spec más 
 - **Crate:** `engine_core`
 - **Depende de:** P01-T04, P01-T11
 - **Contrato que usa:** `hash` y `DataHash` de P01-T03; `Handle` y `math` de P01-T01
-- **Criterios que cubre:** CA-6, CA-7 (ampliado por Q-017: la vía en bloque se comprueba en todas las filas de la tabla con `hash_state_slice` propio, con un test genérico sobre `T: HashState + Pod`), CA-8
+- **Criterios que cubre:** CA-6, CA-7 (ampliado por Q-017: la vía en bloque se comprueba en todas las filas de la tabla con `hash_state_slice` propio, con un test genérico sobre `T: HashState + bytemuck::NoUninit`, porque `bool` no es `Pod` y `cast_slice` solo exige `NoUninit`), CA-8
 - **Tests de aceptación:** `engine/core/tests/aceptacion_core_t05.rs`, con `xxhash-rust` como dependencia de desarrollo para la referencia de CA-8
 - **Paralelizable:** no, porque toca `engine_core`
 - **Revisores:** revisor-constitucion, cazador-determinismo
