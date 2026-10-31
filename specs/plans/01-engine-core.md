@@ -201,7 +201,7 @@ Doce tareas en serie: las diez del "Reparto previsto en tareas" de la spec más 
 - **Tipo:** implementación
 - **Crate:** `engine_core`
 - **Depende de:** P01-T12
-- **Contrato que usa:** `rng` de P01-T03 revisado en P01-T12 (sujeto `Option<Handle>`, `Purpose` sin `Default`); `Tick` y `Handle` de P01-T01
+- **Contrato que usa:** `rng` de P01-T03 revisado en P01-T12 (sujeto `Option<Handle>`, `Purpose` sin `Default`); `Tick` y `Handle` de P01-T01. Aplica además el cambio de doc de Q-022 en `nth` y `random_u64`, con el texto literal de la spec
 - **Criterios que cubre:** CA-9, CA-10
 - **Tests de aceptación:** `engine/core/tests/aceptacion_core_t06.rs`. CA-9 se corre también con `--release`
 - **Paralelizable:** no, porque toca `engine_core`

@@ -949,7 +949,7 @@ Cada contrato ronda las 300 líneas con documentación; ninguna implementación 
 ## Fuera de alcance
 
 - Las tablas, fases, órdenes, eventos y escenarios concretos del juego: `game_rules`. El orden de fases de la simulación real y los desempates de combate: la spec de combate.
-- La simulación sintética del hito 0 como escenario (10.000 unidades, paseo aleatorio, 10.000 ticks, binario sin gráficos con ticks por segundo, dónde vive ese binario, qué RON carga, el valor de `hash_every` en release): `specs/engine/simulacion-sintetica.md`. El mundo de prueba de esta spec es solo para sus tests.
+- La simulación sintética del hito 0 como escenario (10.000 unidades, paseo aleatorio, 10.000 ticks, binario sin gráficos con ticks por segundo, dónde vive ese binario, qué RON carga, el valor de `hash_every` en release): `specs/engine/simulacion-sintetica.md`. El mundo de prueba de esta spec es solo para sus tests. Esa spec incluye al menos un borrado de entidad a mitad de partida, antes del punto de guardado, para que el orden denso de las tablas tras cargar difiera del vivo y el test de la regla 6 atrape cualquier extracción de `rng` o recorrido que dependa de ese orden (Q-022 de `engine_core`).
 - Snapshots para el render, anillo de buffers, interpolación, hilo de simulación y canales con la app: `specs/engine/snapshots.md`, hito 1. Esa spec decide también si el hilo de entrada y salida vacía el registro de replay por trozos para que no se llene (decisión 9).
 - Navegación, flow fields, pasabilidad por facción, recálculo incremental con presupuesto (regla 10) y el tamaño de su grid: `specs/engine/navegacion.md`, hito 2, tras la pregunta 16 del GDD.
 - Grid de visibilidad por equipo: hito 3, si el autor confirma la recomendación sobre la niebla.

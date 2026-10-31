@@ -312,7 +312,9 @@ impl Purpose {
     pub const fn new(id: u32) -> Purpose;
     /// Mismo id, índice `index` en los 32 bits bajos. `index` es la posición de la extracción dentro del bucle del
     /// tick (la n-ésima del mismo propósito y sujeto), nunca un contador guardado en la entidad, que sería estado no
-    /// canónico (regla 6, Q-019).
+    /// canónico (regla 6, Q-019). Se cuenta en el orden canónico de la fase, nunca por la posición densa de una
+    /// entidad en su tabla, que cambia tras un swap-remove, ni por el orden de llegada de los hilos; una extracción
+    /// por entidad lleva su handle como sujeto, no `None` con el índice de la entidad (Q-022).
     #[must_use]
     pub const fn nth(self, index: u32) -> Purpose;
     #[must_use]
@@ -323,9 +325,9 @@ impl Purpose {
 
 /// `xxh3_64` con semilla 0 sobre 32 bytes: `seed.0`, `tick.0`, `handle::raw_or_zero(subject)` y `purpose.0`, cada uno
 /// como `u64` little-endian y en ese orden (ADR-0009). Pura: mismas entradas, mismo valor, en cualquier hilo. No asigna.
-/// `subject` es el handle de la entidad, o `None` para una extracción global. El tipo impide pasar como sujeto un
-/// índice denso de slot, que cambia tras un swap-remove y haría que la misma entidad extrajera valores distintos
-/// según la historia de borrados (Q-018).
+/// `subject` es el handle de la entidad, o `None` para una extracción global. El tipo obliga a que el sujeto sea un
+/// handle emitido por su tabla, no un índice denso de slot, que cambia tras un swap-remove y haría que la misma
+/// entidad extrajera valores distintos según la historia de borrados (Q-018, Q-022).
 #[must_use]
 pub fn random_u64(seed: Seed, tick: Tick, subject: Option<Handle>, purpose: Purpose) -> u64;
 
@@ -769,6 +771,8 @@ Ninguna. Las respondidas están incorporadas arriba; el detalle de cada una est�
 - **Q-017.** CA-7 comprueba la vía en bloque en todas las filas de la tabla.
 - **Q-018.** El sujeto de `random_u64` y `draw` es `Option<Handle>` (CA-9, CA-10).
 - **Q-019.** `Purpose` sin `Default`; la doc de `nth` fija de dónde sale el índice.
+- **Q-022.** La doc de `nth` cierra el índice denso y el orden de los hilos; la de `random_u64` promete lo que el tipo garantiza. La spec de la simulación sintética ejercita un borrado antes del punto de guardado.
+- **Q-023.** El campo de `Purpose` sigue público; `new` y `nth` son la vía recomendada. Se reabre si aparece un uso a mano en `engine_sim` o `game_rules`.
 - **Q-020.** `UnexpectedKind` usa el `Debug` de `Kind`.
 - **Q-021.** `plot!` con la feature cachea un `PlotName::new_leak` por punto de uso; ningún `unsafe` expandido en el llamante.
 
