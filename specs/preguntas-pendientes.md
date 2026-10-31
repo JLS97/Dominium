@@ -8,7 +8,8 @@ Cuando el autor responde, la sesión principal lleva la respuesta a la spec, al 
 
 ## Pendientes
 
-Ninguna.
+- [ ] **Q-024** · 2026-10-31 · `specs/architecture/engine_core.md` (`data`, `list_data_files`) · ¿Un nombre que no es UTF-8 en un archivo que no es `.ron`, o en una carpeta, hace fallar `list_data_files` con `InvalidPath`, o se ignora como se ignoran los demás archivos que no son `.ron`? Contexto: la doc dice "un nombre que no es UTF-8, `DataError::InvalidPath`" sin condicionarlo a la extensión, y así lo implementa P01-T07: la conversión del nombre va antes del filtro de extensión, de modo que un `leeme<no UTF-8>.txt` bajo `data/` rompe el listado y el hash enteros. CA-15 solo cubre el caso del archivo `.ron`. Afecta a qué puede haber en `data/` sin romper la carga. Además, cuando hay varios nombres no UTF-8, cuál se devuelve depende del orden de `read_dir`; es un error, no un valor canónico, así que no se ordena antes. Lo señaló `implementador` en P01-T07. Opciones: (a) mantenerlo estricto: cualquier nombre no UTF-8 bajo la raíz es un error, porque `data/` es del repositorio y un nombre así es un defecto que conviene ver; (b) ignorar los archivos no `.ron` con nombre no UTF-8 y fallar solo en carpetas y en `.ron`, cambiando la doc y añadiendo un caso a CA-15.
+  Respuesta:
 
 ## Respondidas
 
