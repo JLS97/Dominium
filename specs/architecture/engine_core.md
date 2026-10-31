@@ -474,7 +474,8 @@ impl DataHash {
 /// Extensión de los archivos de datos. Solo estos entran en el listado y en el hash (Q-010).
 pub const DATA_EXTENSION: &str = "ron";
 
-/// Un archivo de datos: su ruta relativa a la raíz, con `/` como separador, y su ruta completa.
+/// Un archivo de datos: su ruta relativa a la raíz, con `/` como separador, y su ruta completa, que es `root`
+/// seguido de los componentes de `relative`, sin canonizar ni normalizar `root` (fijado en P01-T07).
 #[derive(Clone, Debug, PartialEq, Eq)]
 pub struct DataFile {
     pub relative: String,
@@ -483,7 +484,9 @@ pub struct DataFile {
 
 /// Todos los archivos regulares con extensión `ron` (sin distinguir mayúsculas) bajo `root`, recursivamente,
 /// ordenados por los bytes UTF-8 de `relative`. No sigue enlaces simbólicos. El orden no depende del sistema de archivos.
-/// `root` inexistente da `DataError::Io`; un nombre que no es UTF-8, `DataError::InvalidPath`.
+/// `root` inexistente da `DataError::Io`; un nombre que no es UTF-8, `DataError::InvalidPath` con la ruta completa del
+/// primer componente así encontrado, archivo o carpeta, sea o no `.ron` (fijado en P01-T07; Q-024 decide si los que
+/// no son `.ron` se ignoran). Un archivo llamado exactamente `.ron` no tiene extensión para `std` y no cuenta.
 pub fn list_data_files(root: &Path) -> Result<Vec<DataFile>, DataError>;
 
 /// Hash del árbol de datos. Para cada archivo de `list_data_files`, en su orden, entran: los bytes UTF-8 de
@@ -493,6 +496,8 @@ pub fn hash_data_tree(root: &Path) -> Result<DataHash, DataError>;
 
 /// Deserializa RON con las opciones por defecto de `ron`. Quita una marca de orden de bytes UTF-8 inicial si la hay.
 /// Las extensiones de RON se activan dentro del propio archivo (`#![enable(implicit_some)]`), no aquí.
+/// `line` y `column` de `Parse` son el inicio del span de `ron`, contados sobre el texto ya sin la marca de orden de
+/// bytes (fijado en P01-T07).
 pub fn parse_ron<T: DeserializeOwned>(text: &str) -> Result<T, DataError>;
 /// Lee el archivo y llama a `parse_ron`. Los errores llevan la ruta. Un contenido que no es UTF-8 da `Io` con
 /// `source.kind() == InvalidData`.
@@ -722,7 +727,7 @@ Cada contrato ronda las 300 líneas con su documentación en español; ninguna i
 - **Hash de estado.** Slice vacío: entra solo la longitud 0 (CA-6); `finish()` sin escribir da el xxh3 de la secuencia vacía (CA-8); escrituras de un byte repetidas un millón de veces dan lo mismo que una sola de un millón (CA-6); `-0.0`, `0.0` y los NaN se distinguen (CA-7); `usize` no entra; `write_handles` con slice vacío no escribe nada (CA-7); `Option<Handle>` no tiene vía en bloque y el benchmark lo mide (CA-19).
 - **Aleatoriedad.** Semilla, tick, sujeto y propósito todos a 0 dan `0xA057_271C_9071_C99D`, no un caso especial (CA-9); `below(1) == 0` (CA-9); `below(u32::MAX)` nunca devuelve `u32::MAX` (CA-9); `unit_f32` de `u64::MAX` es exactamente `1 - 2^-24` (CA-9).
 - **Sobre.** Cuerpo vacío (`()`) codifica y decodifica (CA-11); menos de 8 bytes o `MAGIC` distinto: `BadMagic`; exactamente `MAGIC` sin byte de versión: `Corrupt`; byte de la posición 8 distinto de 1: `UnsupportedEnvelope`; cabecera truncada: `Corrupt`; `Kind` con un índice desconocido: `Corrupt`; handle con generación 0 en el cuerpo: `Corrupt`; `Serialize` que falla: `Encode`; un cuerpo que termina justo donde acaba el archivo no da `TrailingBytes`; una `game_version` distinta de `GAME_VERSION` no es error (todo en CA-12).
-- **Datos.** Carpeta vacía (CA-15); carpeta inexistente (`Io`, CA-15); extensión en mayúsculas (CA-15); subcarpetas anidadas (CA-15); nombre no UTF-8 (`InvalidPath`, CA-15, solo en Windows); archivo RON con marca de orden de bytes (CA-16); archivo vacío (`Parse`, CA-16); contenido no UTF-8 (`Io` con `InvalidData`, CA-16). Sin test, por revisión: enlaces simbólicos ignorados, porque crearlos en Windows exige privilegios.
+- **Datos.** Carpeta vacía (CA-15); carpeta inexistente (`Io`, CA-15); extensión en mayúsculas (CA-15); subcarpetas anidadas (CA-15); nombre no UTF-8 (`InvalidPath`, CA-15, solo en Windows); archivo RON con marca de orden de bytes (CA-16); archivo vacío (`Parse`, CA-16); contenido no UTF-8 (`Io` con `InvalidData`, CA-16). Sin test, por revisión: enlaces simbólicos ignorados, porque crearlos en Windows exige privilegios; un archivo llamado exactamente `.ron` queda fuera del listado; la raíz con o sin barra final, relativa o absoluta, da el mismo hash; CRLF y LF dan hashes distintos porque el contenido entra tal cual (comprobado por `cazador-determinismo` en P01-T07).
 - **Perfilado.** `start()` dos veces, zonas anidadas, zona abierta en un hilo de trabajo, y zonas sin haber llamado a `start()` con la feature activa (CA-17).
 - **Hilos.** Nada de este crate cambia con el número de hilos: CA-5 y CA-10 lo comprueban para lo único que podría, hashers y aleatoriedad.
 
