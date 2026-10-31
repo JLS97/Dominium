@@ -310,7 +310,8 @@ impl Purpose {
     /// `(id << 32)`, índice 0.
     #[must_use]
     pub const fn new(id: u32) -> Purpose;
-    /// Mismo id, índice `index` en los 32 bits bajos. `index` es la posición de la extracción dentro del bucle del
+    /// Mismo id, índice `index` en los 32 bits bajos, que sustituye al que hubiera: `nth` sobre `nth` se queda con el
+    /// último (fijado en P01-T06). `index` es la posición de la extracción dentro del bucle del
     /// tick (la n-ésima del mismo propósito y sujeto), nunca un contador guardado en la entidad, que sería estado no
     /// canónico (regla 6, Q-019). Se cuenta en el orden canónico de la fase, nunca por la posición densa de una
     /// entidad en su tabla, que cambia tras un swap-remove, ni por el orden de llegada de los hilos; una extracción
@@ -349,7 +350,8 @@ impl Draw {
     /// En `[0, n)`: `((bits as u128 * n as u128) >> 64) as u32`. Exige `n > 0`; si no, pánico `rango vacío`.
     #[must_use]
     pub const fn below(self, n: u32) -> u32;
-    /// `below(denominator) < numerator`. Exige `denominator > 0`; si no, pánico `rango vacío`.
+    /// `below(denominator) < numerator`. Exige `denominator > 0`; si no, pánico `rango vacío`, el mismo de `below`,
+    /// del que lo hereda sin comprobación propia (fijado en P01-T06).
     #[must_use]
     pub const fn chance(self, numerator: u32, denominator: u32) -> bool;
     /// `(bits >> 32, bits & 0xFFFF_FFFF)`, para quien necesite dos valores de 32 bits de una extracción.
