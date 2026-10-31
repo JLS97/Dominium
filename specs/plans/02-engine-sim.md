@@ -180,7 +180,7 @@ Diez tareas en serie, según el "Reparto previsto en tareas" de la spec. Ninguna
 - **Tests de aceptación:** `engine/sim/tests/aceptacion_sim_t04.rs`, con pools de 1, 3, 6 y 12 hilos y `allocation-counter` para el `collect` tras calentamiento
 - **Paralelizable:** no, porque toca `engine_sim`
 - **Revisores:** revisor-constitucion, cazador-determinismo
-- **Fuera de alcance:** el resto de módulos; cualquier uso de `rayon` fuera de `parallel.rs`; reducciones paralelas
+- **Fuera de alcance:** el resto de módulos; cualquier uso de `rayon` fuera de `parallel.rs`; reducciones paralelas. `Pool::new` llama a `ThreadPoolBuilder::num_threads(threads)` con el valor explícito, nunca 0, para que la variable de entorno `RAYON_NUM_THREADS` no pueda cambiar el pool (señalado por `cazador-determinismo` en P02-T01)
 - **Estado:** pendiente
 
 ### P02-T05 · `orders` y `grid`
