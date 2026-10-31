@@ -155,7 +155,7 @@ Diez tareas en serie, según el "Reparto previsto en tareas" de la spec. Ninguna
 - **Paralelizable:** no, porque toca `engine_sim`
 - **Revisores:** revisor-constitucion, cazador-determinismo
 - **Fuera de alcance:** `set_active`, `permute_active`, `HashState` y `serde` de `Table`, que siguen en `todo!("P02-T03")`; el resto de módulos. Si el diff pasa de 400 líneas, se parte: `buffer`, `Column` y `Columns` por un lado y `Table` por otro, con el mismo archivo de tests, y la segunda mitad pasa a ser P02-T02b
-- **Estado:** pendiente
+- **Estado:** integrada (2026-10-31)
 
 ### P02-T03 · `set_active`, `permute_active`, `HashState` y `serde` de `table`
 

@@ -3,15 +3,10 @@
 //! activas delante, directorio por slot con generación, borrado diferido por
 //! fila descendente y reordenación por permutación. Ninguna operación asigna
 //! después de `with_capacity`.
-// Contrato A: los cuerpos son marcadores pendientes, no usan sus parámetros
-// y no leen los campos privados. `expect` obliga a P02-T02 y P02-T03 a
-// retirar estas líneas al implementar el módulo.
-#![expect(unused_variables, reason = "cuerpos pendientes de P02-T02 y P02-T03")]
-#![expect(
-    clippy::needless_pass_by_value,
-    reason = "`push` e `insert` no consumen su fila hasta P02-T02"
-)]
-#![expect(dead_code, reason = "campos privados sin leer hasta P02-T02")]
+// Contrato A: los cuerpos de `set_active`, `permute_active` y `Deserialize`
+// son marcadores pendientes y no usan sus parámetros. `expect` obliga a
+// P02-T03 a retirar esta línea al implementarlos.
+#![expect(unused_variables, reason = "cuerpos pendientes de P02-T03")]
 
 use core::num::NonZeroU32;
 use core::ops::{Index, IndexMut};
@@ -21,6 +16,9 @@ use engine_core::hash::{HashState, StateHasher};
 use serde::{Deserialize, Deserializer, Serialize};
 
 use crate::buffer::FixedVec;
+
+/// Marca de slot libre en el directorio de filas.
+const FREE_SLOT: u32 = u32::MAX;
 
 /// Fila densa de una tabla. Cambia con borrados, activaciones y reordenaciones; nunca se guarda de un tick a otro.
 /// Lo estable es el `Handle`; `Handle::slot()` indexa el directorio de la tabla, no la fila.
@@ -32,7 +30,7 @@ impl Row {
     /// La fila como índice de slice.
     #[must_use]
     pub const fn index(self) -> usize {
-        panic!("P02-T02: pendiente de implementar")
+        self.0 as usize
     }
 }
 
@@ -47,7 +45,9 @@ pub struct Column<T> {
 /// Conserva la capacidad.
 impl<T: Clone> Clone for Column<T> {
     fn clone(&self) -> Column<T> {
-        todo!("P02-T02")
+        Column {
+            items: self.items.clone(),
+        }
     }
 }
 
@@ -55,42 +55,44 @@ impl<T> Column<T> {
     /// Vacía, con sitio para `capacity` filas. Asigna.
     #[must_use]
     pub fn with_capacity(capacity: usize) -> Column<T> {
-        todo!("P02-T02")
+        Column {
+            items: FixedVec::with_capacity(capacity),
+        }
     }
 
     /// Amplía la capacidad hasta `capacity` si es menor. Asigna. Solo tras deserializar o al construir.
     pub fn reserve(&mut self, capacity: usize) {
-        todo!("P02-T02")
+        self.items.reserve(capacity);
     }
 
     /// Filas guardadas.
     #[must_use]
     pub fn len(&self) -> usize {
-        todo!("P02-T02")
+        self.items.len()
     }
 
     /// Cierto si no hay ninguna fila.
     #[must_use]
     pub fn is_empty(&self) -> bool {
-        todo!("P02-T02")
+        self.items.is_empty()
     }
 
     /// Capacidad congelada.
     #[must_use]
     pub fn capacity(&self) -> usize {
-        todo!("P02-T02")
+        self.items.capacity()
     }
 
     /// Los valores como slice, en orden de fila.
     #[must_use]
     pub fn as_slice(&self) -> &[T] {
-        todo!("P02-T02")
+        self.items.as_slice()
     }
 
     /// Los valores como slice mutable, en orden de fila.
     #[must_use]
     pub fn as_mut_slice(&mut self) -> &mut [T] {
-        todo!("P02-T02")
+        self.items.as_mut_slice()
     }
 
     /// Añade una fila al final.
@@ -99,7 +101,7 @@ impl<T> Column<T> {
     ///
     /// Pánico `columna llena` si `len() == capacity()`.
     pub fn push(&mut self, value: T) {
-        todo!("P02-T02")
+        self.items.push(value);
     }
 
     /// Intercambia los valores de dos filas.
@@ -108,17 +110,19 @@ impl<T> Column<T> {
     ///
     /// Pánico `fila fuera de la tabla` si alguna es `>= len()`.
     pub fn swap(&mut self, a: Row, b: Row) {
-        todo!("P02-T02")
+        let len = self.items.len();
+        assert!(a.index() < len && b.index() < len, "fila fuera de la tabla");
+        self.items.swap(a.index(), b.index());
     }
 
     /// Saca la última fila, o `None` si está vacía.
     pub fn pop(&mut self) -> Option<T> {
-        todo!("P02-T02")
+        self.items.pop()
     }
 
     /// Vacía sin tocar la capacidad.
     pub fn clear(&mut self) {
-        todo!("P02-T02")
+        self.items.clear();
     }
 }
 
@@ -126,20 +130,20 @@ impl<T> Index<Row> for Column<T> {
     type Output = T;
 
     fn index(&self, row: Row) -> &T {
-        todo!("P02-T02")
+        &self.items[row.index()]
     }
 }
 
 impl<T> IndexMut<Row> for Column<T> {
     fn index_mut(&mut self, row: Row) -> &mut T {
-        todo!("P02-T02")
+        &mut self.items[row.index()]
     }
 }
 
 /// Como `[T]`: longitud y elementos, con la vía en bloque de `T`.
 impl<T: HashState> HashState for Column<T> {
     fn hash_state(&self, hasher: &mut StateHasher) {
-        todo!("P02-T02")
+        self.items.hash_state(hasher);
     }
 }
 
@@ -209,7 +213,8 @@ pub struct Table<C: Columns> {
     /// Bandera de pendiente por slot, para que `mark_removed` sea de tiempo constante. Derivada: no se serializa.
     #[serde(skip)]
     pending_flags: FixedVec<bool>,
-    /// Scratch de `permute_active`. Derivado: no se serializa.
+    /// Scratch de `permute_active` y de `apply_removals` (las filas pendientes, ordenadas de mayor a menor). Derivado:
+    /// no se serializa.
     #[serde(skip)]
     permutation_scratch: FixedVec<Row>,
 }
@@ -217,7 +222,18 @@ pub struct Table<C: Columns> {
 /// Conserva la capacidad.
 impl<C: Columns + Clone> Clone for Table<C> {
     fn clone(&self) -> Table<C> {
-        todo!("P02-T02")
+        Table {
+            capacity: self.capacity,
+            dir_rows: self.dir_rows.clone(),
+            dir_generations: self.dir_generations.clone(),
+            free: self.free.clone(),
+            handles: self.handles.clone(),
+            active_len: self.active_len,
+            pending: self.pending.clone(),
+            columns: self.columns.clone(),
+            pending_flags: self.pending_flags.clone(),
+            permutation_scratch: self.permutation_scratch.clone(),
+        }
     }
 }
 
@@ -246,49 +262,103 @@ impl<C: Columns> Table<C> {
     /// Pánico `capacidad de tabla excesiva` si `capacity >= u32::MAX`.
     #[must_use]
     pub fn with_capacity(capacity: usize) -> Table<C> {
-        todo!("P02-T02")
+        let slots = match u32::try_from(capacity) {
+            Ok(slots) if slots < u32::MAX => slots,
+            _ => panic!("capacidad de tabla excesiva"),
+        };
+        let mut dir_rows = FixedVec::with_capacity(capacity);
+        let mut dir_generations = FixedVec::with_capacity(capacity);
+        let mut free = FixedVec::with_capacity(capacity);
+        let mut pending_flags = FixedVec::with_capacity(capacity);
+        for slot in 0..slots {
+            dir_rows.push(FREE_SLOT);
+            dir_generations.push(Handle::FIRST_GENERATION);
+            // La cima de la pila es el final: se apilan de `slots - 1` a 0 para que el 0 salga primero.
+            free.push(slots - 1 - slot);
+            pending_flags.push(false);
+        }
+        let table = Table {
+            capacity: slots,
+            dir_rows,
+            dir_generations,
+            free,
+            handles: FixedVec::with_capacity(capacity),
+            active_len: 0,
+            pending: FixedVec::with_capacity(capacity),
+            columns: C::with_capacity(capacity),
+            pending_flags,
+            permutation_scratch: FixedVec::with_capacity(capacity),
+        };
+        table.check_aligned();
+        table
     }
 
     /// Slots del directorio: el máximo de entidades vivas.
     #[must_use]
     pub fn capacity(&self) -> usize {
-        todo!("P02-T02")
+        self.capacity as usize
     }
 
     /// Entidades vivas: filas `0..len()`.
     #[must_use]
     pub fn len(&self) -> usize {
-        todo!("P02-T02")
+        self.handles.len()
     }
 
     /// Cierto si no hay ninguna entidad viva.
     #[must_use]
     pub fn is_empty(&self) -> bool {
-        todo!("P02-T02")
+        self.handles.is_empty()
     }
 
     /// Entidades activas: filas `0..active_len()`.
     #[must_use]
     pub fn active_len(&self) -> usize {
-        todo!("P02-T02")
+        self.active_len as usize
     }
 
     /// Entra activa, en la fila `active_len()` (la inactiva que estaba ahí pasa al final). El slot del directorio sale de la
     /// pila de libres: el último liberado primero y, al principio, 0, 1, 2… La generación es la que tenga ese slot.
     pub fn insert(&mut self, row: C::Row) -> Result<Handle, TableFull> {
-        todo!("P02-T02")
+        self.check_aligned();
+        let Some(slot) = self.free.pop() else {
+            return Err(TableFull {
+                capacity: self.capacity(),
+            });
+        };
+        let handle = Handle::new(slot, self.dir_generations[handle_index(slot)]);
+        // `len() < capacity < u32::MAX`, porque acababa de haber un slot libre.
+        let last = Row(u32::try_from(self.handles.len()).expect("len() < u32::MAX"));
+        self.handles.push(handle);
+        self.columns.push(row);
+        self.dir_rows[handle_index(slot)] = last.0;
+        let target = Row(self.active_len);
+        if target != last {
+            self.swap_rows(target, last);
+        }
+        self.active_len += 1;
+        self.check_aligned();
+        Ok(handle)
     }
 
     /// Cierto si el slot de `handle` está ocupado con su misma generación.
     #[must_use]
     pub fn is_alive(&self, handle: Handle) -> bool {
-        todo!("P02-T02")
+        self.row_of(handle).is_some()
     }
 
     /// La fila de `handle`, o `None` si está muerto.
     #[must_use]
     pub fn row_of(&self, handle: Handle) -> Option<Row> {
-        todo!("P02-T02")
+        let index = handle.index();
+        if index >= self.capacity() {
+            return None;
+        }
+        let row = self.dir_rows[index];
+        if row == FREE_SLOT || self.dir_generations[index] != handle.generation() {
+            return None;
+        }
+        Some(Row(row))
     }
 
     /// El handle de la fila `row`.
@@ -298,19 +368,21 @@ impl<C: Columns> Table<C> {
     /// Pánico `fila fuera de la tabla` si `row.index() >= len()`.
     #[must_use]
     pub fn handle_at(&self, row: Row) -> Handle {
-        todo!("P02-T02")
+        assert!(row.index() < self.handles.len(), "fila fuera de la tabla");
+        self.handles[row.index()]
     }
 
     /// La columna densa fila → handle, en orden de fila.
     #[must_use]
     pub fn handles(&self) -> &[Handle] {
-        todo!("P02-T02")
+        self.handles.as_slice()
     }
 
     /// Cierto si `handle` está vivo y su fila es `< active_len()`.
     #[must_use]
     pub fn is_active(&self, handle: Handle) -> bool {
-        todo!("P02-T02")
+        self.row_of(handle)
+            .is_some_and(|row| row.index() < self.active_len())
     }
 
     /// Mueve la fila a la frontera del conjunto activo por intercambio con la fila `active_len() - 1` (al desactivar) o
@@ -322,13 +394,23 @@ impl<C: Columns> Table<C> {
     /// Apunta el borrado para `apply_removals`, en tiempo constante (bandera por slot). `false` si el handle está muerto
     /// o ya estaba apuntado. No asigna.
     pub fn mark_removed(&mut self, handle: Handle) -> bool {
-        todo!("P02-T02")
+        if !self.is_alive(handle) {
+            return false;
+        }
+        let flag = &mut self.pending_flags[handle.index()];
+        if *flag {
+            return false;
+        }
+        *flag = true;
+        // `pending` tiene capacidad para todos los slots y cada vivo entra como mucho una vez: nunca se llena.
+        self.pending.push(handle);
+        true
     }
 
     /// Los handles apuntados para borrar, en orden de marcado.
     #[must_use]
     pub fn pending_removals(&self) -> &[Handle] {
-        todo!("P02-T02")
+        self.pending.as_slice()
     }
 
     /// Aplica los borrados pendientes así: toma la fila de cada pendiente al empezar, y las recorre de mayor a menor (el
@@ -342,7 +424,28 @@ impl<C: Columns> Table<C> {
     ///
     /// Pánico `columna llena` si `removed` no tiene capacidad para `pending_removals().len()`.
     pub fn apply_removals(&mut self, removed: &mut FixedVec<Handle>) {
-        todo!("P02-T02")
+        self.check_aligned();
+        removed.clear();
+        assert!(removed.capacity() >= self.pending.len(), "columna llena");
+        // Las filas de los pendientes al empezar, de mayor a menor. Son distintas entre sí (un handle vivo, una fila),
+        // así que el orden inestable da un único resultado. Borrar la fila mayor solo mueve filas `>=` a ella, de modo
+        // que las filas menores siguen siendo válidas cuando les toca.
+        self.permutation_scratch.clear();
+        for handle in self.pending.as_slice() {
+            self.permutation_scratch
+                .push(Row(self.dir_rows[handle.index()]));
+        }
+        self.permutation_scratch
+            .as_mut_slice()
+            .sort_unstable_by(|a, b| b.cmp(a));
+        for i in 0..self.permutation_scratch.len() {
+            let row = self.permutation_scratch[i];
+            let handle = self.remove_row(row);
+            removed.push(handle);
+        }
+        self.permutation_scratch.clear();
+        self.pending.clear();
+        self.check_aligned();
     }
 
     /// Reordena las filas activas: la fila `i` pasa a tener lo que tenía `order[i]`. Exige que `order` sea una permutación
@@ -358,21 +461,81 @@ impl<C: Columns> Table<C> {
     /// Las columnas, para leer.
     #[must_use]
     pub fn columns(&self) -> &C {
-        todo!("P02-T02")
+        &self.columns
     }
 
     /// Solo para leer y escribir valores. Las operaciones estructurales de `Columns` las hace la tabla; hacerlas aquí
     /// acaba en pánico `columnas desalineadas` en la siguiente operación.
     #[must_use]
     pub fn columns_mut(&mut self) -> &mut C {
-        todo!("P02-T02")
+        &mut self.columns
     }
 
     /// Borra todas las entidades, por fila descendente: las generaciones de sus slots suben y los slots vuelven a la pila
     /// en ese orden, así que el slot de la fila 0 es el primero que se reutiliza. Nada vuelve a estar vivo.
     pub fn clear(&mut self) {
-        todo!("P02-T02")
+        self.check_aligned();
+        while let Some(handle) = self.handles.pop() {
+            self.release_slot(handle);
+        }
+        self.columns.clear();
+        self.pending.clear();
+        self.active_len = 0;
+        self.check_aligned();
     }
+
+    /// Pánico `columnas desalineadas` si `C::len()` no coincide con `len()`.
+    fn check_aligned(&self) {
+        assert!(
+            self.columns.len() == self.handles.len(),
+            "columnas desalineadas"
+        );
+    }
+
+    /// Intercambia dos filas en `handles` y en las columnas, y actualiza el directorio de los dos handles.
+    fn swap_rows(&mut self, a: Row, b: Row) {
+        self.handles.swap(a.index(), b.index());
+        self.columns.swap(a, b);
+        self.dir_rows[self.handles[a.index()].index()] = a.0;
+        self.dir_rows[self.handles[b.index()].index()] = b.0;
+    }
+
+    /// Borra la fila `row` con los dos intercambios de `apply_removals`, libera su slot y devuelve su handle.
+    fn remove_row(&mut self, row: Row) -> Handle {
+        let mut row = row;
+        if row.0 < self.active_len {
+            let last_active = Row(self.active_len - 1);
+            if row != last_active {
+                self.swap_rows(row, last_active);
+            }
+            row = last_active;
+            self.active_len -= 1;
+        }
+        let last = Row(u32::try_from(self.handles.len() - 1).expect("len() < u32::MAX"));
+        if row != last {
+            self.swap_rows(row, last);
+        }
+        let handle = self.handles.pop().expect("la fila existe");
+        self.columns.pop();
+        self.release_slot(handle);
+        handle
+    }
+
+    /// Libera el slot de un handle recién sacado de `handles`: marca la fila libre, sube la generación, baja la bandera
+    /// de pendiente y apila el slot.
+    fn release_slot(&mut self, handle: Handle) {
+        let index = handle.index();
+        self.dir_rows[index] = FREE_SLOT;
+        self.dir_generations[index] = Handle::next_generation(handle.generation());
+        self.pending_flags[index] = false;
+        // `free` tiene capacidad para todos los slots y cada uno está o en la pila o vivo: nunca se llena.
+        self.free.push(handle.slot());
+    }
+}
+
+/// `slot` como índice del directorio.
+fn handle_index(slot: u32) -> usize {
+    slot as usize
 }
 
 /// La secuencia de bytes de "Datos y formatos": `len` y `active_len` como `u64`; `handles()` como `[Handle]`; el
