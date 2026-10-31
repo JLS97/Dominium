@@ -430,7 +430,9 @@ pub enum SaveError {
     #[error("después del cuerpo sobran {count} bytes")]
     TrailingBytes { count: usize },
     /// Truncado o mal formado: un archivo de exactamente 8 bytes, una cabecera a medias, un `Kind` desconocido,
-    /// un handle con generación 0 en el cuerpo; `String` con el detalle del codificador.
+    /// un handle con generación 0 en el cuerpo; `String` con el detalle del codificador, salvo en el archivo de 8 bytes,
+    /// donde no interviene y el texto es propio: "el archivo termina tras `PLUSULTR`, sin el byte de versión del sobre"
+    /// (fijado en P01-T08).
     #[error("archivo truncado o mal formado: {0}")]
     Corrupt(String),
     /// El cuerpo no se pudo serializar; `String` con el detalle del codificador.
@@ -440,6 +442,7 @@ pub enum SaveError {
 
 /// Vacía `out` y escribe en él `MAGIC`, `ENVELOPE_VERSION`, la cabecera y el cuerpo, en `postcard`.
 /// Reutiliza la capacidad de `out`: llamado dos veces con el mismo cuerpo, no vuelve a asignar.
+/// Si devuelve `Encode`, deja `out` vacío y con su capacidad intacta: nunca queda un sobre a medias (fijado en P01-T08).
 pub fn encode<T: Serialize + ?Sized>(header: &Header, body: &T, out: &mut Vec<u8>) -> Result<(), SaveError>;
 /// `encode` sobre un `Vec` nuevo.
 pub fn encode_to_vec<T: Serialize + ?Sized>(header: &Header, body: &T) -> Result<Vec<u8>, SaveError>;
