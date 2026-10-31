@@ -75,7 +75,7 @@ impl Handle {
     }
 }
 
-/// `handle.to_raw()`, o 0 si no hay handle. Para el sujeto de `rng::random_u64` cuando la extracción no es de una entidad.
+/// `handle.to_raw()`, o 0 si no hay handle. Es lo que `rng::random_u64` hashea como sujeto, reciba `Some` o `None`.
 #[must_use]
 pub const fn raw_or_zero(handle: Option<Handle>) -> u64 {
     match handle {
