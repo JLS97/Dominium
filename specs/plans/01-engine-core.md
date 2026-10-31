@@ -251,7 +251,7 @@ Doce tareas en serie: las diez del "Reparto previsto en tareas" de la spec más 
 ### P01-T10 · Extensión de `check-arch` en `xtask`
 
 - **Tipo:** implementación
-- **Crate:** `xtask` y `deny.toml`. El encargo autoriza expresamente tocar `xtask/` y `deny.toml`
+- **Crate:** `xtask` y `deny.toml`. El encargo autoriza expresamente tocar `xtask/`; `deny.toml` lo edita la sesión principal con el bloque que el implementador redacta y valida, porque el hook `guarda-ediciones.ps1` reserva ese archivo al autor (así se hizo el 31 de octubre de 2026)
 - **Depende de:** P01-T01, porque vigila las dependencias que ese contrato declara. Va la última para comprobar el workspace tal como queda
 - **Contrato que usa:** ninguno de `engine_core`; define `xtask` como biblioteca con `direct_dependency_violations`, `cargo_config_violations` y `allow_disallowed_types_violations` (Q-014)
 - **Criterios que cubre:** CA-23, CA-24
