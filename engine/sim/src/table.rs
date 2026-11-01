@@ -3,22 +3,23 @@
 //! activas delante, directorio por slot con generación, borrado diferido por
 //! fila descendente y reordenación por permutación. Ninguna operación asigna
 //! después de `with_capacity`.
-// Contrato A: los cuerpos de `set_active`, `permute_active` y `Deserialize`
-// son marcadores pendientes y no usan sus parámetros. `expect` obliga a
-// P02-T03 a retirar esta línea al implementarlos.
-#![expect(unused_variables, reason = "cuerpos pendientes de P02-T03")]
 
 use core::num::NonZeroU32;
 use core::ops::{Index, IndexMut};
 
 use engine_core::handle::Handle;
-use engine_core::hash::{HashState, StateHasher};
+use engine_core::hash::{HashState, StateHasher, bytemuck};
+use serde::de::Error as _;
 use serde::{Deserialize, Deserializer, Serialize};
 
 use crate::buffer::FixedVec;
 
 /// Marca de slot libre en el directorio de filas.
 const FREE_SLOT: u32 = u32::MAX;
+
+/// Generaciones del directorio que entran en el hash en cada `write`: un buffer de pila de 256 bytes, como el de
+/// `write_handles` en `engine_core`. Da los mismos bytes que un `write_u32` por generación.
+const GENERATION_BLOCK_LEN: usize = 64;
 
 /// Fila densa de una tabla. Cambia con borrados, activaciones y reordenaciones; nunca se guarda de un tick a otro.
 /// Lo estable es el `Handle`; `Handle::slot()` indexa el directorio de la tabla, no la fila.
@@ -240,7 +241,177 @@ impl<C: Columns + Clone> Clone for Table<C> {
 /// Implementación propia: valida los invariantes y vuelve a reservar la capacidad (ver "Datos y formatos").
 impl<'de, C: Columns + Deserialize<'de>> Deserialize<'de> for Table<C> {
     fn deserialize<D: Deserializer<'de>>(deserializer: D) -> Result<Table<C>, D::Error> {
-        todo!("P02-T03")
+        let raw = RawTable::<C>::deserialize(deserializer)?;
+        raw.validate().map_err(D::Error::custom)?;
+        Ok(raw.into_table())
+    }
+}
+
+/// Los campos de `Table<C>` tal como se serializan, en el orden de "Datos y formatos", antes de validarlos. Cada
+/// `FixedVec` llega con la capacidad igual a su longitud; `into_table` la amplía. Las generaciones llegan como `u32`
+/// para que una generación 0 sea un error con mensaje propio y no un pánico ni un error ajeno.
+#[derive(Deserialize)]
+struct RawTable<C> {
+    /// Slots del directorio.
+    capacity: u32,
+    /// Fila por slot, `u32::MAX` si libre.
+    dir_rows: FixedVec<u32>,
+    /// Generación por slot, todavía sin comprobar que no sea 0.
+    dir_generations: FixedVec<u32>,
+    /// Pila de slots libres, del fondo a la cima.
+    free: FixedVec<u32>,
+    /// La columna densa fila → handle.
+    handles: FixedVec<Handle>,
+    /// Frontera del conjunto activo.
+    active_len: u32,
+    /// Borrados pendientes, en orden de marcado.
+    pending: FixedVec<Handle>,
+    /// Las columnas de `game_rules`.
+    columns: C,
+}
+
+impl<C: Columns> RawTable<C> {
+    /// Comprueba todos los invariantes de "Datos y formatos" antes de indexar nada: primero las longitudes y los
+    /// rangos de todos los slots, y solo después el contenido del directorio. Asigna un `Vec<bool>` por slot para
+    /// detectar repetidos sin `HashSet`, lo que está permitido al cargar.
+    fn validate(&self) -> Result<(), &'static str> {
+        if self.capacity == u32::MAX {
+            return Err("tabla corrupta: capacidad excesiva");
+        }
+        let capacity = handle_index(self.capacity);
+        if self.dir_rows.len() != capacity {
+            return Err("tabla corrupta: el directorio de filas no tiene una entrada por slot");
+        }
+        if self.dir_generations.len() != capacity {
+            return Err(
+                "tabla corrupta: el directorio de generaciones no tiene una entrada por slot",
+            );
+        }
+        if self.dir_generations.as_slice().contains(&0) {
+            return Err("tabla corrupta: generación 0 en el directorio");
+        }
+        let len = self.handles.len();
+        if len > capacity {
+            return Err("tabla corrupta: más handles que slots");
+        }
+        if self.columns.len() != len {
+            return Err("tabla corrupta: columnas de longitud distinta de los handles");
+        }
+        if self
+            .handles
+            .as_slice()
+            .iter()
+            .any(|h| h.index() >= capacity)
+        {
+            return Err("tabla corrupta: slot fuera del directorio en los handles");
+        }
+        if self
+            .free
+            .as_slice()
+            .iter()
+            .any(|&s| handle_index(s) >= capacity)
+        {
+            return Err("tabla corrupta: slot fuera del directorio en la pila de libres");
+        }
+        if self
+            .pending
+            .as_slice()
+            .iter()
+            .any(|h| h.index() >= capacity)
+        {
+            return Err("tabla corrupta: slot fuera del directorio en los pendientes");
+        }
+        // Desde aquí todo slot está dentro del directorio, y las filas del directorio solo se comparan, nunca se usan
+        // como índice.
+        let mut seen = vec![false; capacity];
+        for (row, handle) in self.handles.as_slice().iter().enumerate() {
+            let index = handle.index();
+            if handle_index(self.dir_rows[index]) != row {
+                return Err("tabla corrupta: la fila del directorio no es la del handle");
+            }
+            if self.dir_generations[index] != handle.generation().get() {
+                return Err("tabla corrupta: la generación del directorio no es la del handle");
+            }
+            // Dos filas con el mismo slot no pueden cumplir las dos la comprobación de la fila.
+            seen[index] = true;
+        }
+        if self.free.len() != capacity - len {
+            return Err("tabla corrupta: la pila de libres no cubre los slots sin handle");
+        }
+        for &slot in self.free.as_slice() {
+            let index = handle_index(slot);
+            if self.dir_rows[index] != FREE_SLOT {
+                return Err("tabla corrupta: slot libre con fila en el directorio");
+            }
+            if seen[index] {
+                return Err("tabla corrupta: slot libre repetido o vivo");
+            }
+            seen[index] = true;
+        }
+        if handle_index(self.active_len) > len {
+            return Err("tabla corrupta: más activas que filas");
+        }
+        seen.fill(false);
+        for handle in self.pending.as_slice() {
+            let index = handle.index();
+            if self.dir_rows[index] == FREE_SLOT
+                || self.dir_generations[index] != handle.generation().get()
+            {
+                return Err("tabla corrupta: pendiente muerto");
+            }
+            if seen[index] {
+                return Err("tabla corrupta: pendiente repetido");
+            }
+            seen[index] = true;
+        }
+        Ok(())
+    }
+
+    /// Construye la tabla ya validada: reserva la capacidad en todas sus partes, reconstruye la bandera de pendiente
+    /// por slot y deja el scratch de permutación con sitio para todas las filas.
+    fn into_table(self) -> Table<C> {
+        let RawTable {
+            capacity: slots,
+            mut dir_rows,
+            dir_generations: raw_generations,
+            mut free,
+            mut handles,
+            active_len,
+            mut pending,
+            mut columns,
+        } = self;
+        let capacity = handle_index(slots);
+        let mut dir_generations = FixedVec::with_capacity(capacity);
+        for &generation in raw_generations.as_slice() {
+            dir_generations
+                .push(NonZeroU32::new(generation).expect("validado: ninguna generación es 0"));
+        }
+        let mut pending_flags = FixedVec::with_capacity(capacity);
+        for _ in 0..capacity {
+            pending_flags.push(false);
+        }
+        for handle in pending.as_slice() {
+            pending_flags[handle.index()] = true;
+        }
+        dir_rows.reserve(capacity);
+        free.reserve(capacity);
+        handles.reserve(capacity);
+        pending.reserve(capacity);
+        columns.reserve(capacity);
+        let table = Table {
+            capacity: slots,
+            dir_rows,
+            dir_generations,
+            free,
+            handles,
+            active_len,
+            pending,
+            columns,
+            pending_flags,
+            permutation_scratch: FixedVec::with_capacity(capacity),
+        };
+        table.check_aligned();
+        table
     }
 }
 
@@ -388,7 +559,30 @@ impl<C: Columns> Table<C> {
     /// Mueve la fila a la frontera del conjunto activo por intercambio con la fila `active_len() - 1` (al desactivar) o
     /// `active_len()` (al activar). Devuelve `false` sin cambiar nada si el handle está muerto o ya estaba así.
     pub fn set_active(&mut self, handle: Handle, active: bool) -> bool {
-        todo!("P02-T03")
+        self.check_aligned();
+        let Some(row) = self.row_of(handle) else {
+            return false;
+        };
+        if active {
+            if row.0 < self.active_len {
+                return false;
+            }
+            let target = Row(self.active_len);
+            if row != target {
+                self.swap_rows(row, target);
+            }
+            self.active_len += 1;
+        } else {
+            if row.0 >= self.active_len {
+                return false;
+            }
+            let target = Row(self.active_len - 1);
+            if row != target {
+                self.swap_rows(row, target);
+            }
+            self.active_len -= 1;
+        }
+        true
     }
 
     /// Apunta el borrado para `apply_removals`, en tiempo constante (bandera por slot). `false` si el handle está muerto
@@ -455,7 +649,43 @@ impl<C: Columns> Table<C> {
     ///
     /// Pánico `permutación inválida` si `order` no es una permutación de `0..active_len()`.
     pub fn permute_active(&mut self, order: &[Row]) {
-        todo!("P02-T03")
+        self.check_aligned();
+        let active_len = self.active_len();
+        assert!(order.len() == active_len, "permutación inválida");
+        // Primera pasada, sin mover nada: cada fila de `order` está en `0..active_len` y no se repite. El scratch
+        // tiene capacidad para todas las filas; una entrada `FREE_SLOT` es "no vista".
+        self.permutation_scratch.clear();
+        for _ in 0..active_len {
+            self.permutation_scratch.push(Row(FREE_SLOT));
+        }
+        for source in order {
+            assert!(source.index() < active_len, "permutación inválida");
+            assert!(
+                self.permutation_scratch[source.index()] == Row(FREE_SLOT),
+                "permutación inválida"
+            );
+            self.permutation_scratch[source.index()] = *source;
+        }
+        // Segunda pasada: se siguen los ciclos con intercambios. Ahora ninguna entrada del scratch es `FREE_SLOT`, así
+        // que ese valor pasa a significar "fila ya colocada". Al entrar en la fila `j` de un ciclo, `j` guarda lo que
+        // tenía la fila inicial `i` y `order[j]` guarda todavía lo suyo; el intercambio deja en `j` lo que tenía
+        // `order[j]` y pasa lo de `i` a `order[j]`, hasta que `order[j] == i` cierra el ciclo.
+        for i in 0..active_len {
+            if self.permutation_scratch[i] == Row(FREE_SLOT) {
+                continue;
+            }
+            let mut j = i;
+            loop {
+                let source = order[j];
+                self.permutation_scratch[j] = Row(FREE_SLOT);
+                if source.index() == i {
+                    break;
+                }
+                self.swap_rows(Row(u32::try_from(j).expect("j < active_len")), source);
+                j = source.index();
+            }
+        }
+        self.permutation_scratch.clear();
     }
 
     /// Las columnas, para leer.
@@ -544,6 +774,29 @@ fn handle_index(slot: u32) -> usize {
 /// `C::hash_state`. El scratch de permutación y la bandera de pendiente por slot no entran.
 impl<C: Columns + HashState> HashState for Table<C> {
     fn hash_state(&self, hasher: &mut StateHasher) {
-        todo!("P02-T03")
+        hasher.write_u64(len_u64(self.handles.len()));
+        hasher.write_u64(u64::from(self.active_len));
+        self.handles.hash_state(hasher);
+        self.dir_rows.hash_state(hasher);
+        // `NonZeroU32` no es `Pod`, así que las generaciones no pueden entrar con `cast_slice` directamente: se copian
+        // a `u32` por bloques en un buffer de pila y entran como `[u32]`, longitud y elementos en little-endian, sin
+        // asignar (regla 19). Con el directorio vacío no se escribe ningún elemento.
+        hasher.write_u64(len_u64(self.dir_generations.len()));
+        let mut block = [0_u32; GENERATION_BLOCK_LEN];
+        for chunk in self.dir_generations.as_slice().chunks(GENERATION_BLOCK_LEN) {
+            for (slot, generation) in block.iter_mut().zip(chunk) {
+                *slot = generation.get();
+            }
+            hasher.write(bytemuck::cast_slice(&block[..chunk.len()]));
+        }
+        self.free.hash_state(hasher);
+        self.pending.hash_state(hasher);
+        self.columns.hash_state(hasher);
     }
+}
+
+/// La longitud de un slice como `u64`, que es como entra delante de `[T]` en `engine_core::hash`. En los objetivos de
+/// 64 bits nunca falla.
+fn len_u64(len: usize) -> u64 {
+    u64::try_from(len).expect("la longitud de un slice cabe en u64")
 }
