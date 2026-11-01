@@ -168,7 +168,7 @@ Diez tareas en serie, según el "Reparto previsto en tareas" de la spec. Ninguna
 - **Paralelizable:** no, porque toca `engine_sim`
 - **Revisores:** revisor-constitucion, cazador-determinismo
 - **Fuera de alcance:** el resto de módulos; cualquier cambio de firma. La deserialización propia valida todos los invariantes de "Datos y formatos" antes de indexar
-- **Estado:** pendiente
+- **Estado:** integrada (2026-11-01)
 
 ### P02-T04 · `parallel` y `events`
 
