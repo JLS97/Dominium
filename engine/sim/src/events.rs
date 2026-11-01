@@ -2,16 +2,6 @@
 //! Los eventos de cada chunk se concatenan en orden de chunk y se ordenan por
 //! (objetivo, origen, tipo) con la secuencia de emisión como desempate, sin
 //! asignar, para que el resultado no dependa del número de hilos.
-// Contrato A: los cuerpos son marcadores pendientes, no usan sus parámetros,
-// no leen los campos privados y lo que sigue a cada `todo!` solo fija el
-// tipo oculto del `impl Iterator`. `expect` obliga a P02-T04 a retirar
-// estas líneas al implementar el módulo.
-#![expect(unused_variables, reason = "cuerpos pendientes de P02-T04")]
-#![expect(dead_code, reason = "campos privados sin leer hasta P02-T04")]
-#![expect(
-    unreachable_code,
-    reason = "tipo oculto de `impl Iterator` fijado tras `todo!` hasta P02-T04"
-)]
 
 use crate::buffer::FixedVec;
 use crate::parallel::ChunkScratch;
@@ -35,7 +25,9 @@ pub struct SortedEvents<E> {
 /// Conserva la capacidad.
 impl<E: Clone> Clone for SortedEvents<E> {
     fn clone(&self) -> SortedEvents<E> {
-        todo!("P02-T04")
+        SortedEvents {
+            items: self.items.clone(),
+        }
     }
 }
 
@@ -43,7 +35,9 @@ impl<E: EventKey + Clone> SortedEvents<E> {
     /// Vacío, con sitio para `capacity` eventos. Asigna.
     #[must_use]
     pub fn with_capacity(capacity: usize) -> SortedEvents<E> {
-        todo!("P02-T04")
+        SortedEvents {
+            items: FixedVec::with_capacity(capacity),
+        }
     }
 
     /// Vacía, concatena los eventos de cada chunk en orden de chunk y ordena. Exige capacidad para todos; si no,
@@ -53,29 +47,46 @@ impl<E: EventKey + Clone> SortedEvents<E> {
     ///
     /// Pánico `eventos llenos` si los eventos de todos los chunks no caben en la capacidad.
     pub fn collect<S>(&mut self, scratch: &ChunkScratch<S>, events_of: impl Fn(&S) -> &[E]) {
-        todo!("P02-T04")
+        self.items.clear();
+        // Se comprueba el total antes de copiar nada, para no dejar un buffer a medias.
+        let total: usize = scratch
+            .iter()
+            .map(|(_, chunk)| events_of(chunk).len())
+            .sum();
+        assert!(total <= self.items.capacity(), "eventos llenos");
+        // La secuencia de emisión crece con el orden de chunk y, dentro del chunk, con el de emisión; es el desempate
+        // que hace que `sort_unstable` dé el mismo resultado que un orden estable.
+        let mut sequence: u32 = 0;
+        for (_, chunk) in scratch.iter() {
+            for event in events_of(chunk) {
+                self.items.push((event.clone(), sequence));
+                sequence += 1;
+            }
+        }
+        self.items
+            .as_mut_slice()
+            .sort_unstable_by_key(|(event, sequence)| (event.key(), *sequence));
     }
 
     /// Eventos del último `collect`.
     #[must_use]
     pub fn len(&self) -> usize {
-        todo!("P02-T04")
+        self.items.len()
     }
 
     /// Cierto si no hay ningún evento.
     #[must_use]
     pub fn is_empty(&self) -> bool {
-        todo!("P02-T04")
+        self.items.is_empty()
     }
 
     /// Los eventos en el orden final.
     pub fn iter(&self) -> impl Iterator<Item = &E> {
-        todo!("P02-T04");
-        core::iter::empty()
+        self.items.as_slice().iter().map(|(event, _)| event)
     }
 
     /// Vacía sin tocar la capacidad.
     pub fn clear(&mut self) {
-        todo!("P02-T04")
+        self.items.clear();
     }
 }

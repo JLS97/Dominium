@@ -6,28 +6,29 @@
 //!
 //! Es el único archivo del crate que nombra `rayon`: `Pool` envuelve su pool
 //! de hilos y `Pool::install` es la única puerta a él.
-// Contrato A: los cuerpos son marcadores pendientes, no usan sus parámetros,
-// no leen los campos privados y lo que sigue a cada `todo!` solo fija el
-// tipo oculto de los `impl Iterator`. `expect` obliga a P02-T04 a retirar
-// estas líneas al implementar el módulo.
-#![expect(unused_variables, reason = "cuerpos pendientes de P02-T04")]
-#![expect(dead_code, reason = "campos privados sin leer hasta P02-T04")]
-#![expect(
-    unreachable_code,
-    reason = "tipos ocultos de `impl Iterator` fijados tras `todo!` hasta P02-T04"
-)]
 
 use std::sync::Arc;
+
+use rayon::iter::{IndexedParallelIterator, IntoParallelRefMutIterator, ParallelIterator};
+use rayon::slice::{ParallelSlice, ParallelSliceMut};
 
 use crate::table::Row;
 
 /// Filas por chunk. Fijo, para que el número de chunks no dependa de los hilos (regla 13).
 pub const CHUNK: usize = 512;
 
+/// `CHUNK` como `u32`, para la aritmética de `ChunkId::first_row` en `const fn`. La aserción de abajo lo ata a
+/// `CHUNK` en tiempo de compilación.
+const CHUNK_U32: u32 = 512;
+const _: () = assert!(
+    CHUNK_U32 as usize == CHUNK,
+    "CHUNK_U32 tiene que valer CHUNK"
+);
+
 /// Chunks que hacen falta para `len` filas: `len.div_ceil(CHUNK)`; 0 para 0.
 #[must_use]
 pub const fn chunk_count(len: usize) -> usize {
-    panic!("P02-T04: pendiente de implementar")
+    len.div_ceil(CHUNK)
 }
 
 /// Índice de un chunk: el `i` que recibe las filas `i * CHUNK .. min((i + 1) * CHUNK, len)`.
@@ -39,7 +40,17 @@ impl ChunkId {
     /// `Row(self.0 * CHUNK)`: la primera fila del chunk, para leer otras columnas por fila.
     #[must_use]
     pub const fn first_row(self) -> Row {
-        panic!("P02-T04: pendiente de implementar")
+        Row(self.0 * CHUNK_U32)
+    }
+
+    /// El chunk en la posición `index` de un scratch. Las filas caben en `u32` (`Row`), así que los chunks también.
+    fn at(index: usize) -> ChunkId {
+        ChunkId(u32::try_from(index).expect("el índice de chunk cabe en u32"))
+    }
+
+    /// La posición del chunk en un scratch.
+    const fn index(self) -> usize {
+        self.0 as usize
     }
 }
 
@@ -68,20 +79,32 @@ pub enum PoolError {
 impl Pool {
     /// Asigna. `threads == 0` da `ZeroThreads`.
     pub fn new(threads: usize) -> Result<Pool, PoolError> {
-        todo!("P02-T04")
+        if threads == 0 {
+            return Err(PoolError::ZeroThreads);
+        }
+        // Siempre con el número explícito, nunca 0: con 0 `rayon` leería `RAYON_NUM_THREADS` y el pool dependería del
+        // entorno.
+        let inner = rayon::ThreadPoolBuilder::new()
+            .num_threads(threads)
+            .build()
+            .map_err(|error| PoolError::Build(error.to_string()))?;
+        Ok(Pool {
+            inner: Arc::new(inner),
+            threads,
+        })
     }
 
     /// Los hilos con los que se creó el pool.
     #[must_use]
     pub fn threads(&self) -> usize {
-        todo!("P02-T04")
+        self.threads
     }
 
     /// Ejecuta `f` dentro del pool; si ya se está dentro de él, en línea en el hilo actual. Desde un hilo ajeno cuesta
     /// despertar a un trabajador, por eso `Simulation::step` entra una sola vez por tick. Es la única puerta a `rayon`;
     /// `par_map` y `par_scan` la usan.
     pub fn install<R: Send>(&self, f: impl FnOnce() -> R + Send) -> R {
-        todo!("P02-T04")
+        self.inner.install(f)
     }
 }
 
@@ -95,50 +118,69 @@ pub struct ChunkScratch<S> {
 /// Clona cada valor en orden de chunk.
 impl<S: Clone> Clone for ChunkScratch<S> {
     fn clone(&self) -> ChunkScratch<S> {
-        todo!("P02-T04")
+        ChunkScratch {
+            chunks: self.chunks.clone(),
+        }
     }
 }
 
 impl<S> ChunkScratch<S> {
     /// `chunk_count(max_len)` valores, construidos en orden con `make`. Asigna.
-    pub fn new(max_len: usize, make: impl FnMut(ChunkId) -> S) -> ChunkScratch<S> {
-        todo!("P02-T04")
+    pub fn new(max_len: usize, mut make: impl FnMut(ChunkId) -> S) -> ChunkScratch<S> {
+        let chunks = (0..chunk_count(max_len))
+            .map(|index| make(ChunkId::at(index)))
+            .collect();
+        ChunkScratch { chunks }
     }
 
     /// Número de chunks.
     #[must_use]
     pub fn len(&self) -> usize {
-        todo!("P02-T04")
+        self.chunks.len()
     }
 
     /// Cierto si no hay ningún chunk.
     #[must_use]
     pub fn is_empty(&self) -> bool {
-        todo!("P02-T04")
+        self.chunks.is_empty()
     }
 
     /// El valor del chunk.
     #[must_use]
     pub fn get(&self, chunk: ChunkId) -> &S {
-        todo!("P02-T04")
+        &self.chunks[chunk.index()]
     }
 
     /// El valor del chunk, mutable.
     #[must_use]
     pub fn get_mut(&mut self, chunk: ChunkId) -> &mut S {
-        todo!("P02-T04")
+        &mut self.chunks[chunk.index()]
     }
 
     /// Los valores con su chunk, en orden de chunk.
     pub fn iter(&self) -> impl Iterator<Item = (ChunkId, &S)> {
-        todo!("P02-T04");
-        core::iter::empty()
+        self.chunks
+            .iter()
+            .enumerate()
+            .map(|(index, chunk)| (ChunkId::at(index), chunk))
     }
 
     /// Los valores con su chunk, mutables, en orden de chunk.
     pub fn iter_mut(&mut self) -> impl Iterator<Item = (ChunkId, &mut S)> {
-        todo!("P02-T04");
-        core::iter::empty()
+        self.chunks
+            .iter_mut()
+            .enumerate()
+            .map(|(index, chunk)| (ChunkId::at(index), chunk))
+    }
+
+    /// Los primeros `count` chunks, mutables, para repartirlos entre los trozos de una fase.
+    ///
+    /// # Panics
+    ///
+    /// Pánico `scratch insuficiente` si hay menos de `count` chunks.
+    fn take_mut(&mut self, count: usize) -> &mut [S] {
+        assert!(self.chunks.len() >= count, "scratch insuficiente");
+        &mut self.chunks[..count]
     }
 }
 
@@ -164,7 +206,25 @@ pub fn par_map<I, O, S, F>(
     S: Send,
     F: Fn(ChunkId, &[I], &mut [O], &mut S) + Sync + Send,
 {
-    todo!("P02-T04")
+    assert_eq!(input.len(), output.len(), "longitudes distintas");
+    let count = chunk_count(input.len());
+    let chunks = scratch.take_mut(count);
+    if count == 0 {
+        return;
+    }
+    // `par_chunks` y `par_chunks_mut` trocean por `CHUNK` filas fijas y `zip` empareja por índice: el chunk `i` recibe
+    // siempre las mismas filas y el mismo scratch, sea cual sea el número de hilos. Ninguna reducción: cada chunk solo
+    // escribe en lo suyo.
+    pool.install(|| {
+        input
+            .par_chunks(CHUNK)
+            .zip(output.par_chunks_mut(CHUNK))
+            .zip(chunks.par_iter_mut())
+            .enumerate()
+            .for_each(|(index, ((input, output), scratch))| {
+                f(ChunkId::at(index), input, output, scratch);
+            });
+    });
 }
 
 /// Igual que `par_map` sin salida por fila: la fase solo produce eventos y contadores en su `scratch`.
@@ -178,7 +238,20 @@ where
     S: Send,
     F: Fn(ChunkId, &[I], &mut S) + Sync + Send,
 {
-    todo!("P02-T04")
+    let count = chunk_count(input.len());
+    let chunks = scratch.take_mut(count);
+    if count == 0 {
+        return;
+    }
+    pool.install(|| {
+        input
+            .par_chunks(CHUNK)
+            .zip(chunks.par_iter_mut())
+            .enumerate()
+            .for_each(|(index, (input, scratch))| {
+                f(ChunkId::at(index), input, scratch);
+            });
+    });
 }
 
 /// Lo que se puede sumar en orden de chunk: contadores enteros (regla 9) y cualquier reducción. Las reducciones
@@ -191,5 +264,9 @@ pub trait Accumulate: Default {
 /// `A::default()` más `get(scratch de cada chunk)` en orden de chunk.
 #[must_use]
 pub fn reduce_in_order<S, A: Accumulate>(scratch: &ChunkScratch<S>, get: impl Fn(&S) -> &A) -> A {
-    todo!("P02-T04")
+    let mut total = A::default();
+    for chunk in &scratch.chunks {
+        total.accumulate(get(chunk));
+    }
+    total
 }

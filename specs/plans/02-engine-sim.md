@@ -181,7 +181,7 @@ Diez tareas en serie, según el "Reparto previsto en tareas" de la spec. Ninguna
 - **Paralelizable:** no, porque toca `engine_sim`
 - **Revisores:** revisor-constitucion, cazador-determinismo
 - **Fuera de alcance:** el resto de módulos; cualquier uso de `rayon` fuera de `parallel.rs`; reducciones paralelas. `Pool::new` llama a `ThreadPoolBuilder::num_threads(threads)` con el valor explícito, nunca 0, para que la variable de entorno `RAYON_NUM_THREADS` no pueda cambiar el pool (señalado por `cazador-determinismo` en P02-T01)
-- **Estado:** pendiente
+- **Estado:** integrada (2026-11-01)
 
 ### P02-T05 · `orders` y `grid`
 
